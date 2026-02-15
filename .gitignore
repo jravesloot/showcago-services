@@ -1,0 +1,18 @@
+# Build artifacts
+/_build/
+/deps/
+
+# Generated assets
+/priv/static/assets/
+
+# ElixirLS
+/.elixir_ls/
+
+# Coverage and logs
+/cover/
+*.log
+
+# Environment files (keep template)
+.env
+.env.*
+!.env.example
