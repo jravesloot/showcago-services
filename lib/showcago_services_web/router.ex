@@ -22,6 +22,10 @@ defmodule ShowcagoServicesWeb.Router do
     live "/admin/artists", Admin.ArtistLive, :index
     live "/admin/artists/new", Admin.ArtistLive, :new
     live "/admin/artists/:id/edit", Admin.ArtistLive, :edit
+
+    live "/admin/venues", Admin.VenueLive, :index
+    live "/admin/venues/new", Admin.VenueLive, :new
+    live "/admin/venues/:id/edit", Admin.VenueLive, :edit
   end
 
   # Other scopes may use custom stacks.

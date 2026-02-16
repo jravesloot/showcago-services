@@ -3,6 +3,8 @@ defmodule ShowcagoServices.Events do
 
   alias ShowcagoServices.Artists
   alias ShowcagoServices.Schema.Artist
+  alias ShowcagoServices.Venues
+  alias ShowcagoServices.Schema.Venue
 
   @spec match_artists_in_text(binary(), keyword()) :: [Artists.artist_match()]
   defdelegate match_artists_in_text(text, opts \\ []), to: Artists
@@ -24,4 +26,22 @@ defmodule ShowcagoServices.Events do
 
   @spec artist_changeset(Artist.t(), map()) :: Ecto.Changeset.t()
   defdelegate artist_changeset(artist, attrs \\ %{}), to: Artists
+
+  @spec list_venues(keyword()) :: [Venue.t()]
+  defdelegate list_venues(opts \\ []), to: Venues
+
+  @spec get_venue!(term()) :: Venue.t()
+  defdelegate get_venue!(id), to: Venues
+
+  @spec create_venue(map()) :: {:ok, Venue.t()} | {:error, Ecto.Changeset.t()}
+  defdelegate create_venue(attrs \\ %{}), to: Venues
+
+  @spec update_venue(Venue.t(), map()) :: {:ok, Venue.t()} | {:error, Ecto.Changeset.t()}
+  defdelegate update_venue(venue, attrs), to: Venues
+
+  @spec delete_venue(Venue.t()) :: {:ok, Venue.t()} | {:error, Ecto.Changeset.t()}
+  defdelegate delete_venue(venue), to: Venues
+
+  @spec venue_changeset(Venue.t(), map()) :: Ecto.Changeset.t()
+  defdelegate venue_changeset(venue, attrs \\ %{}), to: Venues
 end
