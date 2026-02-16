@@ -4,12 +4,16 @@ defmodule ShowcagoServicesWeb.Admin.ArtistLive do
   alias ShowcagoServices.Artists
   alias ShowcagoServices.Schema.Artist
 
+  @per_page 50
+
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:search, "")
      |> assign(:editing_artist_id, nil)
      |> assign(:form, nil)
+     |> assign(:page, 1)
+     |> assign(:per_page, @per_page)
      |> load_artists()}
   end
 
@@ -42,6 +46,21 @@ defmodule ShowcagoServicesWeb.Admin.ArtistLive do
     {:noreply,
      socket
      |> assign(:search, search)
+     |> assign(:page, 1)
+     |> load_artists()}
+  end
+
+  def handle_event("next_page", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:page, socket.assigns.page + 1)
+     |> load_artists()}
+  end
+
+  def handle_event("prev_page", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:page, max(socket.assigns.page - 1, 1))
      |> load_artists()}
   end
 
@@ -105,8 +124,24 @@ defmodule ShowcagoServicesWeb.Admin.ArtistLive do
   end
 
   defp load_artists(socket) do
-    artists = Artists.list_artists(search: socket.assigns.search)
-    assign(socket, :artists, artists)
+    total_count = Artists.count_artists(search: socket.assigns.search)
+    per_page = socket.assigns.per_page
+    total_pages = max(div(total_count + per_page - 1, per_page), 1)
+    current_page = socket.assigns.page |> max(1) |> min(total_pages)
+    offset = (current_page - 1) * per_page
+
+    artists =
+      Artists.list_artists(
+        search: socket.assigns.search,
+        limit: per_page,
+        offset: offset
+      )
+
+    socket
+    |> assign(:artists, artists)
+    |> assign(:total_count, total_count)
+    |> assign(:total_pages, total_pages)
+    |> assign(:page, current_page)
   end
 
   def render(assigns) do
@@ -226,6 +261,33 @@ defmodule ShowcagoServicesWeb.Admin.ArtistLive do
         <div :if={@artists == []} class="px-6 py-12 text-center text-gray-500">
           <p class="text-lg">No artists found</p>
           <p class="text-sm mt-2">Try adjusting your search or add a new artist</p>
+        </div>
+
+        <div :if={@total_count > 0} class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div class="flex items-center justify-between gap-4">
+            <p class="text-sm text-gray-600">
+              Showing page {@page} of {@total_pages} ({@total_count} artists)
+            </p>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                phx-click="prev_page"
+                disabled={@page == 1}
+                class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                phx-click="next_page"
+                disabled={@page >= @total_pages}
+                class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

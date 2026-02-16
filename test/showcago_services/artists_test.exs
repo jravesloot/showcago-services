@@ -58,6 +58,31 @@ defmodule ShowcagoServices.ArtistsTest do
     end
   end
 
+  describe "list_artists/1 and count_artists/1" do
+    test "paginates artist list with limit and offset" do
+      for n <- 1..60 do
+        insert_artist!("Artist #{String.pad_leading(Integer.to_string(n), 3, "0")}")
+      end
+
+      page_1 = Artists.list_artists(limit: 50, offset: 0)
+      page_2 = Artists.list_artists(limit: 50, offset: 50)
+
+      assert length(page_1) == 50
+      assert length(page_2) == 10
+      assert hd(page_1).name == "Artist 001"
+      assert hd(page_2).name == "Artist 051"
+    end
+
+    test "counts artists with and without search" do
+      insert_artist!("Boris")
+      insert_artist!("Bongzilla")
+      insert_artist!("The Body")
+
+      assert Artists.count_artists() == 3
+      assert Artists.count_artists(search: "bor") == 1
+    end
+  end
+
   defp insert_artist!(name) do
     %Artist{}
     |> Artist.changeset(%{name: name})

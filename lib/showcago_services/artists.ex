@@ -95,11 +95,25 @@ defmodule ShowcagoServices.Artists do
   @spec list_artists(keyword()) :: [Artist.t()]
   def list_artists(opts \\ []) do
     search = Keyword.get(opts, :search)
+    limit = Keyword.get(opts, :limit)
+    offset = Keyword.get(opts, :offset)
 
     Artist
     |> maybe_search_artists(search)
     |> order_by([a], asc: a.name)
+    |> maybe_limit(limit)
+    |> maybe_offset(offset)
     |> Repo.all()
+  end
+
+  @spec count_artists(keyword()) :: non_neg_integer()
+  def count_artists(opts \\ []) do
+    search = Keyword.get(opts, :search)
+
+    Artist
+    |> maybe_search_artists(search)
+    |> exclude(:order_by)
+    |> Repo.aggregate(:count, :id)
   end
 
   defp maybe_search_artists(query, nil), do: query
@@ -125,6 +139,22 @@ defmodule ShowcagoServices.Artists do
       ]
     )
   end
+
+  defp maybe_limit(query, nil), do: query
+
+  defp maybe_limit(query, limit) when is_integer(limit) and limit > 0 do
+    from(q in query, limit: ^limit)
+  end
+
+  defp maybe_limit(query, _invalid_limit), do: query
+
+  defp maybe_offset(query, nil), do: query
+
+  defp maybe_offset(query, offset) when is_integer(offset) and offset >= 0 do
+    from(q in query, offset: ^offset)
+  end
+
+  defp maybe_offset(query, _invalid_offset), do: query
 
   @spec get_artist!(term()) :: Artist.t()
   def get_artist!(id), do: Repo.get!(Artist, id)
