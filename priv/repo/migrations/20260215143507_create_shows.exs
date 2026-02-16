@@ -20,7 +20,10 @@ defmodule ShowcagoServices.Repo.Migrations.CreateShows do
     create index(:shows, [:venue_id])
     create index(:shows, [:date])
     create index(:shows, [:status])
-    create constraint(:shows, :shows_status_valid, check: "status IN ('upcoming', 'postponed', 'cancelled', 'past')")
+
+    create constraint(:shows, :shows_status_valid,
+             check: "status IN ('upcoming', 'postponed', 'cancelled', 'past')"
+           )
 
     create table(:show_artists) do
       add :show_id, references(:shows, on_delete: :delete_all), null: false

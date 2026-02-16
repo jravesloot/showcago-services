@@ -1,4 +1,4 @@
-defmodule ShowcagoServices.Events.Venue do
+defmodule ShowcagoServices.Schema.Venue do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -10,7 +10,7 @@ defmodule ShowcagoServices.Events.Venue do
     field :zip_code, :string
     field :website, :string
 
-    has_many :shows, ShowcagoServices.Events.Show
+    has_many :shows, ShowcagoServices.Schema.Show
 
     timestamps(type: :utc_datetime)
   end

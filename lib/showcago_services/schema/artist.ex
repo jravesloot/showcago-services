@@ -1,4 +1,4 @@
-defmodule ShowcagoServices.Events.Artist do
+defmodule ShowcagoServices.Schema.Artist do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -6,7 +6,7 @@ defmodule ShowcagoServices.Events.Artist do
     field :name, :string
     field :website, :string
 
-    many_to_many :shows, ShowcagoServices.Events.Show, join_through: "show_artists"
+    many_to_many :shows, ShowcagoServices.Schema.Show, join_through: "show_artists"
 
     timestamps(type: :utc_datetime)
   end

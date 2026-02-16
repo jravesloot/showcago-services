@@ -18,6 +18,10 @@ defmodule ShowcagoServicesWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live "/admin/artists", Admin.ArtistLive, :index
+    live "/admin/artists/new", Admin.ArtistLive, :new
+    live "/admin/artists/:id/edit", Admin.ArtistLive, :edit
   end
 
   # Other scopes may use custom stacks.

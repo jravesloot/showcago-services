@@ -11,8 +11,7 @@ config :showcago_services,
   ecto_repos: [ShowcagoServices.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :showcago_services, ShowcagoServices.Repo,
-  migration_timestamps: [type: :utc_datetime]
+config :showcago_services, ShowcagoServices.Repo, migration_timestamps: [type: :utc_datetime]
 
 # Configure the endpoint
 config :showcago_services, ShowcagoServicesWeb.Endpoint,

@@ -1,8 +1,8 @@
-defmodule ShowcagoServices.EventsTest do
+defmodule ShowcagoServices.ArtistsTest do
   use ShowcagoServices.DataCase, async: true
 
-  alias ShowcagoServices.Events
-  alias ShowcagoServices.Events.Artist
+  alias ShowcagoServices.Artists
+  alias ShowcagoServices.Schema.Artist
   alias ShowcagoServices.Repo
 
   describe "match_artists_in_text/2" do
@@ -12,7 +12,7 @@ defmodule ShowcagoServices.EventsTest do
       insert_artist!("The Body")
 
       matches =
-        Events.match_artists_in_text(
+        Artists.match_artists_in_text(
           "Boris: Pink 20th Anniversary Tour 2025 w/ Bongzilla",
           limit: 10
         )
@@ -27,7 +27,7 @@ defmodule ShowcagoServices.EventsTest do
     test "does not match on partial-word false positives" do
       insert_artist!("Boris")
 
-      matches = Events.match_artists_in_text("This is a boring documentary", limit: 10)
+      matches = Artists.match_artists_in_text("This is a boring documentary", limit: 10)
 
       assert matches == []
     end
@@ -35,8 +35,8 @@ defmodule ShowcagoServices.EventsTest do
     test "returns an empty list for blank input" do
       insert_artist!("Boris")
 
-      assert [] == Events.match_artists_in_text("", limit: 10)
-      assert [] == Events.match_artists_in_text("   ", limit: 10)
+      assert [] == Artists.match_artists_in_text("", limit: 10)
+      assert [] == Artists.match_artists_in_text("   ", limit: 10)
     end
 
     test "returns an empty list for oversized input" do
@@ -44,13 +44,13 @@ defmodule ShowcagoServices.EventsTest do
 
       oversized_text = String.duplicate("a", 501)
 
-      assert [] == Events.match_artists_in_text(oversized_text, limit: 10)
+      assert [] == Artists.match_artists_in_text(oversized_text, limit: 10)
     end
 
     test "returns scored results with artist structs" do
       insert_artist!("Boris")
 
-      [match | _] = Events.match_artists_in_text("Boris at Metro", limit: 10)
+      [match | _] = Artists.match_artists_in_text("Boris at Metro", limit: 10)
 
       assert %Artist{} = match.artist
       assert is_float(match.score)
