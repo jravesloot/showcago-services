@@ -10,7 +10,7 @@
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
-alias ShowcagoServices.Events.Artist
+alias ShowcagoServices.Schema.Artist
 alias ShowcagoServices.Repo
 
 artists_csv_path = Application.app_dir(:showcago_services, "priv/repo/seeds/artists.csv")
