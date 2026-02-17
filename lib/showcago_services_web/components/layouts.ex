@@ -31,6 +31,8 @@ defmodule ShowcagoServicesWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :full_width, :boolean, default: false
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -62,8 +64,8 @@ defmodule ShowcagoServicesWeb.Layouts do
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+    <main class={[@full_width && "py-0", !@full_width && "px-4 py-20 sm:px-6 lg:px-8"]}>
+      <div class={[@full_width && "space-y-4", !@full_width && "mx-auto max-w-2xl space-y-4"]}>
         {render_slot(@inner_block)}
       </div>
     </main>

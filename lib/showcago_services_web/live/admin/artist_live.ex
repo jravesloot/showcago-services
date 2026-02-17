@@ -146,151 +146,153 @@ defmodule ShowcagoServicesWeb.Admin.ArtistLive do
 
   def render(assigns) do
     ~H"""
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Artists</h1>
-        <p class="mt-2 text-sm text-gray-600">Manage artists for upcoming shows</p>
-      </div>
-
-      <%= if @live_action in [:new, :edit] do %>
-        <div class="mb-8 bg-white shadow-sm rounded-lg p-6">
-          <div class="mb-6">
-            <h2 class="text-2xl font-bold text-gray-900">
-              {@page_title}
-            </h2>
-          </div>
-
-          <.form for={@form} id="artist-form" phx-change="validate" phx-submit="save">
-            <div class="space-y-4">
-              <div>
-                <.input field={@form[:name]} type="text" label="Name" required />
-              </div>
-
-              <div>
-                <.input field={@form[:website]} type="text" label="Website" />
-              </div>
-            </div>
-
-            <div class="mt-6 flex gap-3">
-              <button
-                type="submit"
-                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-              >
-                Save
-              </button>
-              <.link
-                navigate={~p"/admin/artists"}
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </.link>
-            </div>
-          </.form>
+    <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} full_width={true}>
+      <ShowcagoServicesWeb.AdminComponents.admin_layout active_page={:artists}>
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold text-gray-900">Artists</h1>
+          <p class="mt-2 text-sm text-gray-600">Manage artists for upcoming shows</p>
         </div>
-      <% end %>
 
-      <div class="mb-6 flex gap-4 items-center">
-        <form phx-change="search" class="flex-1">
-          <input
-            type="text"
-            name="search"
-            value={@search}
-            placeholder="Search artists..."
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </form>
+        <%= if @live_action in [:new, :edit] do %>
+          <div class="mb-8 bg-white shadow-sm rounded-lg p-6">
+            <div class="mb-6">
+              <h2 class="text-2xl font-bold text-gray-900">
+                {@page_title}
+              </h2>
+            </div>
 
-        <.link
-          navigate={~p"/admin/artists/new"}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Add Artist
-        </.link>
-      </div>
+            <.form for={@form} id="artist-form" phx-change="validate" phx-submit="save">
+              <div class="space-y-4">
+                <div>
+                  <.input field={@form[:name]} type="text" label="Name" required />
+                </div>
 
-      <div class="bg-white shadow-sm rounded-lg overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Website
-              </th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr :for={artist <- @artists} class="hover:bg-gray-50">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {artist.name}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <a
-                  :if={artist.website}
-                  href={artist.website}
-                  target="_blank"
-                  class="text-blue-600 hover:text-blue-800"
-                >
-                  {artist.website}
-                </a>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <.link
-                  navigate={~p"/admin/artists/#{artist.id}/edit"}
-                  class="text-blue-600 hover:text-blue-900 mr-4"
-                >
-                  Edit
-                </.link>
+                <div>
+                  <.input field={@form[:website]} type="text" label="Website" />
+                </div>
+              </div>
+
+              <div class="mt-6 flex gap-3">
                 <button
-                  phx-click="delete"
-                  phx-value-id={artist.id}
-                  data-confirm="Are you sure you want to delete this artist?"
-                  class="text-red-600 hover:text-red-900"
+                  type="submit"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
                 >
-                  Delete
+                  Save
                 </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <.link
+                  navigate={~p"/admin/artists"}
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </.link>
+              </div>
+            </.form>
+          </div>
+        <% end %>
 
-        <div :if={@artists == []} class="px-6 py-12 text-center text-gray-500">
-          <p class="text-lg">No artists found</p>
-          <p class="text-sm mt-2">Try adjusting your search or add a new artist</p>
+        <div class="mb-6 flex gap-4 items-center">
+          <form phx-change="search" class="flex-1">
+            <input
+              type="text"
+              name="search"
+              value={@search}
+              placeholder="Search artists..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </form>
+
+          <.link
+            navigate={~p"/admin/artists/new"}
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Add Artist
+          </.link>
         </div>
 
-        <div :if={@total_count > 0} class="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <div class="flex items-center justify-between gap-4">
-            <p class="text-sm text-gray-600">
-              Showing page {@page} of {@total_pages} ({@total_count} artists)
-            </p>
+        <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Website
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr :for={artist <- @artists} class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {artist.name}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <a
+                    :if={artist.website}
+                    href={artist.website}
+                    target="_blank"
+                    class="text-blue-600 hover:text-blue-800"
+                  >
+                    {artist.website}
+                  </a>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <.link
+                    navigate={~p"/admin/artists/#{artist.id}/edit"}
+                    class="text-blue-600 hover:text-blue-900 mr-4"
+                  >
+                    Edit
+                  </.link>
+                  <button
+                    phx-click="delete"
+                    phx-value-id={artist.id}
+                    data-confirm="Are you sure you want to delete this artist?"
+                    class="text-red-600 hover:text-red-900"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-            <div class="flex items-center gap-2">
-              <button
-                type="button"
-                phx-click="prev_page"
-                disabled={@page == 1}
-                class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                phx-click="next_page"
-                disabled={@page >= @total_pages}
-                class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                Next
-              </button>
+          <div :if={@artists == []} class="px-6 py-12 text-center text-gray-500">
+            <p class="text-lg">No artists found</p>
+            <p class="text-sm mt-2">Try adjusting your search or add a new artist</p>
+          </div>
+
+          <div :if={@total_count > 0} class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div class="flex items-center justify-between gap-4">
+              <p class="text-sm text-gray-600">
+                Showing page {@page} of {@total_pages} ({@total_count} artists)
+              </p>
+
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  phx-click="prev_page"
+                  disabled={@page == 1}
+                  class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  phx-click="next_page"
+                  disabled={@page >= @total_pages}
+                  class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </ShowcagoServicesWeb.AdminComponents.admin_layout>
+    </Layouts.app>
     """
   end
 end

@@ -160,171 +160,171 @@ defmodule ShowcagoServicesWeb.Admin.VenueLive do
 
   def render(assigns) do
     ~H"""
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Venues</h1>
-        <p class="mt-2 text-sm text-gray-600">Manage venues for upcoming shows</p>
-      </div>
-
-      <%= if @live_action in [:new, :edit] do %>
-        <div class="mb-8 bg-white shadow-sm rounded-lg p-6">
-          <div class="mb-6">
-            <h2 class="text-2xl font-bold text-gray-900">
-              {@page_title}
-            </h2>
-          </div>
-
-          <.form for={@form} id="venue-form" phx-change="validate" phx-submit="save">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="md:col-span-2">
-                <.input field={@form[:name]} type="text" label="Name" required />
-              </div>
-
-              <div class="md:col-span-2">
-                <.input field={@form[:address]} type="text" label="Address" />
-              </div>
-
-              <div>
-                <.input field={@form[:city]} type="text" label="City" />
-              </div>
-
-              <div>
-                <.input field={@form[:state]} type="text" label="State" />
-              </div>
-
-              <div>
-                <.input field={@form[:zip_code]} type="text" label="Zip Code" />
-              </div>
-
-              <div>
-                <.input field={@form[:website]} type="text" label="Website" />
-              </div>
-            </div>
-
-            <div class="mt-6 flex gap-3">
-              <button
-                type="submit"
-                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-              >
-                Save
-              </button>
-              <.link
-                navigate={~p"/admin/venues"}
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </.link>
-            </div>
-          </.form>
+    <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} full_width={true}>
+      <ShowcagoServicesWeb.AdminComponents.admin_layout active_page={:venues}>
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold text-gray-900">Venues</h1>
+          <p class="mt-2 text-sm text-gray-600">Manage venues for upcoming shows</p>
         </div>
-      <% end %>
 
-      <div class="mb-6 flex gap-4 items-center">
-        <form phx-change="search" class="flex-1">
-          <input
-            type="text"
-            name="search"
-            value={@search}
-            placeholder="Search venues by name, city, or address..."
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </form>
+        <%= if @live_action in [:new, :edit] do %>
+          <div class="mb-8 bg-white shadow-sm rounded-lg p-6">
+            <div class="mb-6">
+              <h2 class="text-2xl font-bold text-gray-900">
+                {@page_title}
+              </h2>
+            </div>
 
-        <.link
-          navigate={~p"/admin/venues/new"}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
-        >
-          Add Venue
-        </.link>
-      </div>
-
-      <div class="bg-white shadow-sm rounded-lg overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Location
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Website
-              </th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr :for={venue <- @venues} class="hover:bg-gray-50">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {venue.name}
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-500">
-                <div :if={venue.address} class="whitespace-nowrap">{venue.address}</div>
-                <div class="whitespace-nowrap">
-                  {format_location(venue)}
+            <.form for={@form} id="venue-form" phx-change="validate" phx-submit="save">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                  <.input field={@form[:name]} type="text" label="Name" required />
                 </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <a
-                  :if={venue.website}
-                  href={venue.website}
-                  target="_blank"
-                  class="text-blue-600 hover:text-blue-800"
-                >
-                  {venue.website}
-                </a>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <.link
-                  navigate={~p"/admin/venues/#{venue.id}/edit"}
-                  class="text-blue-600 hover:text-blue-900 mr-4"
-                >
-                  Edit
-                </.link>
+
+                <div class="md:col-span-2">
+                  <.input field={@form[:address]} type="text" label="Address" />
+                </div>
+
+                <div>
+                  <.input field={@form[:city]} type="text" label="City" />
+                </div>
+
+                <div>
+                  <.input field={@form[:state]} type="text" label="State" />
+                </div>
+
+                <div>
+                  <.input field={@form[:zip_code]} type="text" label="Zip Code" />
+                </div>
+
+                <div>
+                  <.input field={@form[:website]} type="text" label="Website" />
+                </div>
+              </div>
+
+              <div class="mt-6 flex gap-3">
                 <button
-                  phx-click="delete"
-                  phx-value-id={venue.id}
-                  data-confirm="Are you sure you want to delete this venue?"
-                  class="text-red-600 hover:text-red-900"
+                  type="submit"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
                 >
-                  Delete
+                  Save
                 </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <.link
+                  navigate={~p"/admin/venues"}
+                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </.link>
+              </div>
+            </.form>
+          </div>
+        <% end %>
 
-        <div :if={@venues == []} class="px-6 py-12 text-center text-gray-500">
-          <p class="text-lg">No venues found</p>
-          <p class="text-sm mt-2">Try adjusting your search or add a new venue</p>
-        </div>
-      </div>
+        <div class="mb-6 flex gap-4 items-center">
+          <form phx-change="search" class="flex-1">
+            <input
+              type="text"
+              name="search"
+              value={@search}
+              placeholder="Search venues by name, city, or address..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </form>
 
-      <div :if={@total_pages > 1} class="mt-6 flex items-center justify-between">
-        <div class="text-sm text-gray-700">
-          Showing page {@page} of {@total_pages} ({@total_count} total venues)
-        </div>
-        <div class="flex gap-2">
-          <button
-            :if={@page > 1}
-            phx-click="prev_page"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          <.link
+            navigate={~p"/admin/venues/new"}
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
           >
-            Previous
-          </button>
-          <button
-            :if={@page < @total_pages}
-            phx-click="next_page"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-          >
-            Next
-          </button>
+            Add Venue
+          </.link>
         </div>
-      </div>
-    </div>
+
+        <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Location
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr :for={venue <- @venues} class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <div class="flex items-center gap-2">
+                    <span>{venue.name}</span>
+                    <a
+                      :if={venue.website}
+                      href={venue.website}
+                      target="_blank"
+                      class="text-gray-400 hover:text-blue-600"
+                      title={venue.website}
+                    >
+                      <.icon name="hero-globe-alt" class="size-4" />
+                    </a>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                  <div :if={venue.address} class="whitespace-nowrap">{venue.address}</div>
+                  <div class="whitespace-nowrap">
+                    {format_location(venue)}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <.link
+                    navigate={~p"/admin/venues/#{venue.id}/edit"}
+                    class="text-blue-600 hover:text-blue-900 mr-4"
+                  >
+                    Edit
+                  </.link>
+                  <button
+                    phx-click="delete"
+                    phx-value-id={venue.id}
+                    data-confirm="Are you sure you want to delete this venue?"
+                    class="text-red-600 hover:text-red-900"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div :if={@venues == []} class="px-6 py-12 text-center text-gray-500">
+            <p class="text-lg">No venues found</p>
+            <p class="text-sm mt-2">Try adjusting your search or add a new venue</p>
+          </div>
+        </div>
+
+        <div :if={@total_pages > 1} class="mt-6 flex items-center justify-between">
+          <div class="text-sm text-gray-700">
+            Showing page {@page} of {@total_pages} ({@total_count} total venues)
+          </div>
+          <div class="flex gap-2">
+            <button
+              :if={@page > 1}
+              phx-click="prev_page"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            <button
+              :if={@page < @total_pages}
+              phx-click="next_page"
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </ShowcagoServicesWeb.AdminComponents.admin_layout>
+    </Layouts.app>
     """
   end
 end
