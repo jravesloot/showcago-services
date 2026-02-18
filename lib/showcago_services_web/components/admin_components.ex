@@ -42,6 +42,18 @@ defmodule ShowcagoServicesWeb.AdminComponents do
               <.icon name="hero-map-pin" class="size-4" />
               <span>Venues</span>
             </.link>
+
+            <.link
+              navigate={~p"/admin/shows"}
+              class={[
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                @active_page == :shows && "bg-blue-50 text-blue-700",
+                @active_page != :shows && "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+              ]}
+            >
+              <.icon name="hero-calendar-days" class="size-4" />
+              <span>Shows</span>
+            </.link>
           </nav>
         </aside>
 

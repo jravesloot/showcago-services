@@ -258,7 +258,12 @@ defmodule ShowcagoServicesWeb.Admin.VenueLive do
               <tr :for={venue <- @venues} class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   <div class="flex items-center gap-2">
-                    <span>{venue.name}</span>
+                    <.link
+                      navigate={~p"/admin/venues/#{venue.id}"}
+                      class="text-blue-700 hover:text-blue-900 hover:underline"
+                    >
+                      {venue.name}
+                    </.link>
                     <a
                       :if={venue.website}
                       href={venue.website}

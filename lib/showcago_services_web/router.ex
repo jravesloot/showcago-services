@@ -26,6 +26,9 @@ defmodule ShowcagoServicesWeb.Router do
     live "/admin/venues", Admin.VenueLive, :index
     live "/admin/venues/new", Admin.VenueLive, :new
     live "/admin/venues/:id/edit", Admin.VenueLive, :edit
+    live "/admin/venues/:id", Admin.VenueDetailLive, :show
+
+    live "/admin/shows", Admin.ShowLive, :index
   end
 
   # Other scopes may use custom stacks.
