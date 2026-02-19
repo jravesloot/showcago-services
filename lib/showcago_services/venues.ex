@@ -12,6 +12,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Schema.Venue
 
   @default_schedule_refresh_interval_seconds 3_600
+  @default_event_artist_match_limit 5
   @salt_shed_tm_urls [
     "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZ917AI5F",
     "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZ917Amf0"
@@ -268,9 +269,15 @@ defmodule ShowcagoServices.Venues do
         Enum.reduce(events, %{matched: 0, created: 0, skipped: 0}, fn event, acc ->
           Logger.info("[venue_parser] found event title=\"#{event.name}\" venue_id=#{venue.id}")
 
-          case Artists.match_artists_in_text(event.name, limit: 1) do
-            [%{artist: artist} | _] ->
-              case find_or_create_show(venue, artist.id, event) do
+          artist_ids =
+            event.name
+            |> Artists.match_artists_in_text(limit: @default_event_artist_match_limit)
+            |> Enum.map(& &1.artist.id)
+            |> Enum.uniq()
+
+          case artist_ids do
+            [first_artist_id | _] = artist_ids when is_integer(first_artist_id) ->
+              case find_or_create_show(venue, artist_ids, event) do
                 :created -> %{acc | matched: acc.matched + 1, created: acc.created + 1}
                 :existing -> %{acc | matched: acc.matched + 1, skipped: acc.skipped + 1}
                 :invalid_event -> %{acc | skipped: acc.skipped + 1}
@@ -305,19 +312,18 @@ defmodule ShowcagoServices.Venues do
     end
   end
 
-  defp find_or_create_show(venue, artist_id, event) do
+  defp find_or_create_show(venue, artist_ids, event) when is_list(artist_ids) do
     with {:ok, starts_at} <- parse_event_datetime(event.start_date) do
       existing_show_id =
         from(s in Show,
-          join: sa in "show_artists",
-          on: sa.show_id == s.id,
-          where: s.venue_id == ^venue.id and s.date == ^starts_at and sa.artist_id == ^artist_id,
+          where: s.venue_id == ^venue.id and s.date == ^starts_at and s.notes == ^event.name,
           select: s.id,
           limit: 1
         )
         |> Repo.one()
 
       if existing_show_id do
+        attach_artists_to_show(existing_show_id, artist_ids)
         :existing
       else
         now = DateTime.utc_now(:second)
@@ -333,9 +339,7 @@ defmodule ShowcagoServices.Venues do
             })
             |> Repo.insert()
 
-          Repo.insert_all("show_artists", [
-            %{show_id: show.id, artist_id: artist_id, inserted_at: now, updated_at: now}
-          ])
+          insert_show_artists(show.id, artist_ids, now)
         end)
 
         :created
@@ -343,6 +347,19 @@ defmodule ShowcagoServices.Venues do
     else
       _ -> :invalid_event
     end
+  end
+
+  defp attach_artists_to_show(show_id, artist_ids) do
+    insert_show_artists(show_id, artist_ids, DateTime.utc_now(:second))
+  end
+
+  defp insert_show_artists(show_id, artist_ids, now) do
+    rows =
+      Enum.map(artist_ids, fn artist_id ->
+        %{show_id: show_id, artist_id: artist_id, inserted_at: now, updated_at: now}
+      end)
+
+    Repo.insert_all("show_artists", rows, on_conflict: :nothing)
   end
 
   defp extract_events_from_html(html) do

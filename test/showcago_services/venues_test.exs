@@ -197,6 +197,46 @@ defmodule ShowcagoServices.VenuesTest do
       assert artist.id in show_artist_ids
     end
 
+    test "attaches multiple matched artists from a single event title" do
+      {:ok, artist_1} =
+        %Artist{}
+        |> Artist.changeset(%{name: "Jesus and Mary Chain"})
+        |> Repo.insert()
+
+      {:ok, artist_2} =
+        %Artist{}
+        |> Artist.changeset(%{name: "Tortoise"})
+        |> Repo.insert()
+
+      venue =
+        create_venue!(%{
+          name: "The Salt Shed",
+          schedule_html: """
+          <html>
+            <head>
+              <script type=\"application/ld+json\">
+                {"@context":"https://schema.org","@type":"MusicEvent","name":"Warm Love Cool Dreams- The Jesus and Mary Chain, Tortoise, Smerz +More","startDate":"2026-11-14T20:00:00-06:00","url":"https://www.saltshedchicago.com/event/warm-love-cool-dreams"}
+              </script>
+            </head>
+          </html>
+          """
+        })
+
+      assert {:ok, result} = Venues.parse_schedule_html_and_create_shows(venue)
+      assert result.parsed_events_count == 1
+      assert result.matched_events_count == 1
+      assert result.created_shows_count == 1
+
+      show = Repo.one!(from s in Show, where: s.venue_id == ^venue.id)
+
+      show_artist_ids =
+        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
+        |> Repo.all()
+
+      assert artist_1.id in show_artist_ids
+      assert artist_2.id in show_artist_ids
+    end
+
     test "is idempotent and does not create duplicate shows" do
       {:ok, _artist} =
         %Artist{}
