@@ -62,4 +62,115 @@ defmodule ShowcagoServicesWeb.Admin.ShowLiveTest do
 
     refute render(view) =~ "Past Show"
   end
+
+  test "hides ignored shows by default", %{conn: conn} do
+    venue =
+      %Venue{}
+      |> Venue.changeset(%{name: "Metro"})
+      |> Repo.insert!()
+
+    %Show{}
+    |> Show.changeset(%{
+      date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+      venue_id: venue.id,
+      notes: "Ignored Show",
+      ignored: true
+    })
+    |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/shows")
+
+    refute has_element?(view, "li", "Ignored Show")
+    refute has_element?(view, "span", "Ignored")
+    assert has_element?(view, "#toggle-ignored-shows", "Show ignored shows")
+  end
+
+  test "shows ignored shows when toggled", %{conn: conn} do
+    venue =
+      %Venue{}
+      |> Venue.changeset(%{name: "Metro"})
+      |> Repo.insert!()
+
+    %Show{}
+    |> Show.changeset(%{
+      date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+      venue_id: venue.id,
+      notes: "Ignored Show",
+      ignored: true
+    })
+    |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/shows")
+
+    assert has_element?(view, "#toggle-ignored-shows", "Show ignored shows")
+
+    view
+    |> element("#toggle-ignored-shows")
+    |> render_click()
+
+    assert has_element?(view, "li", "Ignored Show")
+    assert has_element?(view, "span", "Ignored")
+    assert has_element?(view, "#toggle-ignored-shows", "Hide ignored shows")
+  end
+
+  test "can ignore a visible show from the row action", %{conn: conn} do
+    venue =
+      %Venue{}
+      |> Venue.changeset(%{name: "Metro"})
+      |> Repo.insert!()
+
+    show =
+      %Show{}
+      |> Show.changeset(%{
+        date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+        venue_id: venue.id,
+        notes: "Ignore Me",
+        ignored: false
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/shows")
+
+    assert has_element?(view, "li", "Ignore Me")
+    assert has_element?(view, "#toggle-ignore-show-#{show.id}", "Ignore")
+
+    view
+    |> element("#toggle-ignore-show-#{show.id}")
+    |> render_click()
+
+    assert render(view) =~ "Ignored: Ignore Me"
+    refute has_element?(view, "li", "Ignore Me")
+    assert Repo.get!(Show, show.id).ignored == true
+  end
+
+  test "can un-ignore a show from the row action when ignored shows are visible", %{conn: conn} do
+    venue =
+      %Venue{}
+      |> Venue.changeset(%{name: "Metro"})
+      |> Repo.insert!()
+
+    show =
+      %Show{}
+      |> Show.changeset(%{
+        date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+        venue_id: venue.id,
+        notes: "Bring Me Back",
+        ignored: true
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/shows?show_ignored=true")
+
+    assert has_element?(view, "li", "Bring Me Back")
+    assert has_element?(view, "#toggle-ignore-show-#{show.id}", "Un-ignore")
+
+    view
+    |> element("#toggle-ignore-show-#{show.id}")
+    |> render_click()
+
+    assert render(view) =~ "Un-ignored: Bring Me Back"
+    assert has_element?(view, "li", "Bring Me Back")
+    assert has_element?(view, "#toggle-ignore-show-#{show.id}", "Ignore")
+    assert Repo.get!(Show, show.id).ignored == false
+  end
 end

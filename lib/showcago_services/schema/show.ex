@@ -13,6 +13,7 @@ defmodule ShowcagoServices.Schema.Show do
     field :ticket_url, :string
     field :price_min, :decimal
     field :price_max, :decimal
+    field :ignored, :boolean, default: false
     field :status, Ecto.Enum, values: @statuses, default: :upcoming
     field :notes, :string
 
@@ -34,6 +35,7 @@ defmodule ShowcagoServices.Schema.Show do
       :ticket_url,
       :price_min,
       :price_max,
+      :ignored,
       :status,
       :notes,
       :venue_id

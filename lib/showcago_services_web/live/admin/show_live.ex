@@ -7,7 +7,39 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
     {:ok,
      socket
      |> assign(:page_title, "Shows")
-     |> assign(:grouped_shows, Shows.list_upcoming_shows_grouped_by_date())}
+     |> assign(:show_ignored, false)
+     |> assign(:grouped_shows, [])}
+  end
+
+  def handle_params(params, _uri, socket) do
+    show_ignored = show_ignored?(params)
+
+    {:noreply,
+     socket
+     |> assign(:show_ignored, show_ignored)
+     |> assign(:grouped_shows, list_grouped_shows(show_ignored))}
+  end
+
+  def handle_event("toggle-ignore-show", %{"id" => id}, socket) do
+    case Integer.parse(id) do
+      {show_id, ""} ->
+        show = Shows.get_show!(show_id)
+        next_ignored = !show.ignored
+
+        case Shows.set_show_ignored(show, next_ignored) do
+          {:ok, _updated_show} ->
+            {:noreply,
+             socket
+             |> assign(:grouped_shows, list_grouped_shows(socket.assigns.show_ignored))
+             |> put_flash(:info, ignore_feedback_message(next_ignored, show))}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Unable to update show ignore status")}
+        end
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid show selection")}
+    end
   end
 
   def render(assigns) do
@@ -17,6 +49,17 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
         <div class="mb-8">
           <h1 class="text-3xl font-bold text-gray-900">Upcoming Shows</h1>
           <p class="mt-2 text-sm text-gray-600">Events grouped by date across all venues</p>
+          <div class="mt-4">
+            <.link
+              id="toggle-ignored-shows"
+              patch={
+                if(@show_ignored, do: ~p"/admin/shows", else: ~p"/admin/shows?show_ignored=true")
+              }
+              class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              {if(@show_ignored, do: "Hide ignored shows", else: "Show ignored shows")}
+            </.link>
+          </div>
         </div>
 
         <div
@@ -43,9 +86,17 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
                 <li :for={show <- shows} class="px-5 py-4">
                   <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p class="text-base font-semibold text-slate-900">
-                        {show.notes || "Untitled event"}
-                      </p>
+                      <div class="flex items-center gap-2">
+                        <p class="text-base font-semibold text-slate-900">
+                          {show.notes || "Untitled event"}
+                        </p>
+                        <span
+                          :if={show.ignored}
+                          class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                        >
+                          Ignored
+                        </span>
+                      </div>
                       <p class="mt-1 text-sm text-slate-600">
                         {show_time(show)} • {show.venue && show.venue.name}
                       </p>
@@ -54,14 +105,26 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
                       </p>
                     </div>
 
-                    <a
-                      :if={show.ticket_url}
-                      href={show.ticket_url}
-                      target="_blank"
-                      class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-                    >
-                      Tickets
-                    </a>
+                    <div class="flex items-center gap-2">
+                      <button
+                        id={"toggle-ignore-show-#{show.id}"}
+                        type="button"
+                        phx-click="toggle-ignore-show"
+                        phx-value-id={show.id}
+                        class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        {if(show.ignored, do: "Un-ignore", else: "Ignore")}
+                      </button>
+
+                      <a
+                        :if={show.ticket_url}
+                        href={show.ticket_url}
+                        target="_blank"
+                        class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                      >
+                        Tickets
+                      </a>
+                    </div>
                   </div>
                 </li>
               </ul>
@@ -86,4 +149,16 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
   defp show_time(show) do
     Calendar.strftime(show.date, "%I:%M %p")
   end
+
+  defp show_ignored?(%{"show_ignored" => value}) when value in ["true", "1"], do: true
+  defp show_ignored?(_params), do: false
+
+  defp list_grouped_shows(show_ignored) do
+    Shows.list_upcoming_shows_grouped_by_date(include_ignored: show_ignored)
+  end
+
+  defp ignore_feedback_message(true, show), do: "Ignored: #{show_title(show)}"
+  defp ignore_feedback_message(false, show), do: "Un-ignored: #{show_title(show)}"
+
+  defp show_title(show), do: show.notes || "Untitled event"
 end
