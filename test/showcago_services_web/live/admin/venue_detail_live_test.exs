@@ -3,6 +3,8 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias ShowcagoServices.Repo
+  alias ShowcagoServices.Schema.Show
   alias ShowcagoServices.Venues
 
   test "renders venue schedule html", %{conn: conn} do
@@ -16,7 +18,116 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
 
     assert has_element?(view, "#venue-schedule-html")
+    assert has_element?(view, "#venue-shows")
     assert render(view) =~ "Upcoming show"
     assert has_element?(view, ~s(a[href="/admin/venues/#{venue.id}/edit"]))
+  end
+
+  test "renders shows for the current venue", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    {:ok, other_venue} =
+      Venues.create_venue(%{
+        name: "Metro",
+        website: "https://metrochicago.com"
+      })
+
+    %Show{}
+    |> Show.changeset(%{
+      date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+      venue_id: venue.id,
+      notes: "Venue Show"
+    })
+    |> Repo.insert!()
+
+    %Show{}
+    |> Show.changeset(%{
+      date: DateTime.add(DateTime.utc_now(:second), 172_800, :second),
+      venue_id: other_venue.id,
+      notes: "Other Venue Show"
+    })
+    |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    assert has_element?(view, "#venue-shows")
+    assert has_element?(view, "li", "Venue Show")
+    refute has_element?(view, "li", "Other Venue Show")
+  end
+
+  test "hides ignored shows by default on venue detail", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    %Show{}
+    |> Show.changeset(%{
+      date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+      venue_id: venue.id,
+      notes: "Ignored Venue Show",
+      ignored: true
+    })
+    |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    refute has_element?(view, "li", "Ignored Venue Show")
+    assert has_element?(view, "#toggle-ignored-venue-shows", "Show ignored shows")
+  end
+
+  test "shows ignored shows when toggled on venue detail", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    %Show{}
+    |> Show.changeset(%{
+      date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+      venue_id: venue.id,
+      notes: "Ignored Venue Show",
+      ignored: true
+    })
+    |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    view
+    |> element("#toggle-ignored-venue-shows")
+    |> render_click()
+
+    assert has_element?(view, "li", "Ignored Venue Show")
+    assert has_element?(view, "#toggle-ignored-venue-shows", "Hide ignored shows")
+  end
+
+  test "shows collect schedule button for Thalia Hall", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "Thalia Hall",
+        website: "https://www.thaliahallchicago.com"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    assert has_element?(view, "#collect-thalia-schedule", "Collect Schedule")
+  end
+
+  test "does not show collect schedule button for non-Thalia venues", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    refute has_element?(view, "#collect-thalia-schedule")
   end
 end

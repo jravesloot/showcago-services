@@ -9,7 +9,44 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
     {:ok,
      socket
      |> assign(:page_title, venue.name)
-     |> assign(:venue, venue)}
+     |> assign(:venue, venue)
+     |> assign(:show_ignored, false)
+     |> assign(:shows, [])}
+  end
+
+  def handle_params(params, _uri, socket) do
+    show_ignored = show_ignored?(params)
+
+    {:noreply,
+     socket
+     |> assign(:show_ignored, show_ignored)
+     |> assign(
+       :shows,
+       Venues.list_shows_for_venue(socket.assigns.venue.id, include_ignored: show_ignored)
+     )}
+  end
+
+  def handle_event("collect-thalia-schedule", _params, socket) do
+    case Venues.collect_thalia_hall_schedule_html() do
+      {:ok, updated_venue, :updated} ->
+        {:noreply,
+         socket
+         |> assign(:venue, updated_venue)
+         |> put_flash(:info, "Collected Thalia Hall schedule")}
+
+      {:ok, same_venue, :skipped} ->
+        {:noreply,
+         socket
+         |> assign(:venue, same_venue)
+         |> put_flash(:info, "Thalia Hall schedule recently collected; skipped")}
+
+      {:error, :thalia_hall_not_found} ->
+        {:noreply, put_flash(socket, :error, "Thalia Hall venue not found")}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Unable to collect Thalia Hall schedule: #{inspect(reason)}")}
+    end
   end
 
   def render(assigns) do
@@ -23,6 +60,16 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
           </div>
 
           <div class="flex items-center gap-2">
+            <button
+              :if={thalia_hall?(@venue)}
+              id="collect-thalia-schedule"
+              type="button"
+              phx-click="collect-thalia-schedule"
+              class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+            >
+              Collect Schedule
+            </button>
+
             <.link
               navigate={~p"/admin/venues/#{@venue.id}/edit"}
               class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
@@ -78,6 +125,42 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
           </div>
         </div>
 
+        <div class="mb-6 rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-4 py-3 flex items-center justify-between gap-2">
+            <h2 class="text-lg font-semibold text-slate-900">Shows</h2>
+            <.link
+              id="toggle-ignored-venue-shows"
+              patch={
+                if(@show_ignored,
+                  do: ~p"/admin/venues/#{@venue.id}",
+                  else: ~p"/admin/venues/#{@venue.id}?show_ignored=true"
+                )
+              }
+              class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              {if(@show_ignored, do: "Hide ignored shows", else: "Show ignored shows")}
+            </.link>
+          </div>
+
+          <div id="venue-shows" class="p-4">
+            <div :if={@shows == []} class="text-sm text-slate-500">No shows for this venue yet.</div>
+
+            <ul :if={@shows != []} class="space-y-3">
+              <li
+                :for={show <- @shows}
+                id={"venue-show-#{show.id}"}
+                class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+              >
+                <p class="text-sm font-semibold text-slate-900">{show.notes || "Untitled event"}</p>
+                <p class="text-xs text-slate-600">
+                  {Calendar.strftime(show.date, "%A, %B %-d, %Y %I:%M %p")}
+                </p>
+                <p class="text-xs text-slate-700">Artists: {artist_names(show)}</p>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div class="border-b border-slate-200 px-4 py-3">
             <h2 class="text-lg font-semibold text-slate-900">Schedule HTML</h2>
@@ -93,5 +176,20 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
       </ShowcagoServicesWeb.AdminComponents.admin_layout>
     </Layouts.app>
     """
+  end
+
+  defp thalia_hall?(venue), do: venue.name == "Thalia Hall"
+
+  defp show_ignored?(%{"show_ignored" => value}) when value in ["true", "1"], do: true
+  defp show_ignored?(_params), do: false
+
+  defp artist_names(show) do
+    show.artists
+    |> Enum.map(& &1.name)
+    |> Enum.join(", ")
+    |> case do
+      "" -> "Unmatched"
+      names -> names
+    end
   end
 end

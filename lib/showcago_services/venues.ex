@@ -12,7 +12,11 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Schema.Venue
 
   @default_schedule_refresh_interval_seconds 3_600
+  @default_thalia_hall_refresh_interval_seconds 21_600
   @default_event_artist_match_limit 5
+  @thalia_hall_tm_urls [
+    "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=Mj9g4ZY7tXTmixNb7zMOAP85WPGAfFL8&venueId=rZ7HnEZ17aJq7&source=ticketweb"
+  ]
   @salt_shed_tm_urls [
     "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZ917AI5F",
     "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZ917Amf0"
@@ -40,6 +44,24 @@ defmodule ShowcagoServices.Venues do
     |> maybe_search_venues(search)
     |> exclude(:order_by)
     |> Repo.aggregate(:count, :id)
+  end
+
+  @spec list_shows_for_venue(term(), keyword()) :: [Show.t()]
+  def list_shows_for_venue(venue_id, opts \\ []) do
+    include_ignored = Keyword.get(opts, :include_ignored, false)
+
+    Show
+    |> where([s], s.venue_id == ^venue_id)
+    |> maybe_exclude_ignored_shows(include_ignored)
+    |> order_by([s], desc: s.date)
+    |> preload([:artists])
+    |> Repo.all()
+  end
+
+  defp maybe_exclude_ignored_shows(query, true), do: query
+
+  defp maybe_exclude_ignored_shows(query, false) do
+    where(query, [s], s.ignored == false)
   end
 
   defp maybe_search_venues(query, nil), do: query
@@ -164,10 +186,76 @@ defmodule ShowcagoServices.Venues do
     end
   end
 
+  @doc """
+  Collects schedule data for Thalia Hall via API and stores raw payload.
+
+  This uses a conservative default refresh interval to avoid frequent requests.
+  Set `force: true` to bypass throttling.
+  """
+  @spec collect_thalia_hall_schedule_html(keyword()) ::
+          {:ok, Venue.t(), :updated | :skipped} | {:error, term()}
+  def collect_thalia_hall_schedule_html(opts \\ []) do
+    case Repo.get_by(Venue, name: "Thalia Hall") do
+      nil ->
+        {:error, :thalia_hall_not_found}
+
+      venue ->
+        force? = Keyword.get(opts, :force, false)
+
+        refresh_interval_seconds =
+          Keyword.get(
+            opts,
+            :refresh_interval_seconds,
+            @default_thalia_hall_refresh_interval_seconds
+          )
+
+        fetch_ticketmaster_events_fun =
+          Keyword.get(
+            opts,
+            :fetch_ticketmaster_events_fun,
+            &fetch_thalia_hall_ticketmaster_events/0
+          )
+
+        cond do
+          force? or stale_for_collection?(venue.data_last_collected, refresh_interval_seconds) ->
+            do_collect_thalia_hall_schedule_data(venue, fetch_ticketmaster_events_fun)
+
+          true ->
+            {:ok, venue, :skipped}
+        end
+    end
+  end
+
   defp do_collect_schedule_html(venue, fetch_html_fun) do
     with {:ok, html} <- fetch_html_fun.(venue.website),
          {:ok, updated_venue} <- update_venue(venue, %{schedule_html: html}) do
       {:ok, updated_venue, :updated}
+    end
+  end
+
+  defp do_collect_thalia_hall_schedule_data(venue, fetch_ticketmaster_events_fun) do
+    with {:ok, tm_events} <- fetch_ticketmaster_events_fun.() do
+      Logger.info("[venue_parser] thalia ticketmaster events fetched count=#{length(tm_events)}")
+
+      payload =
+        Jason.encode!(%{
+          "source" => "thalia_hall_ticketmaster_api",
+          "fetched_at" => DateTime.utc_now(:second) |> DateTime.to_iso8601(),
+          "events" => tm_events
+        })
+
+      update_venue(venue, %{schedule_html: payload})
+      |> case do
+        {:ok, updated_venue} -> {:ok, updated_venue, :updated}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      {:error, reason} ->
+        Logger.warning(
+          "[venue_parser] thalia ticketmaster fetch failed reason=#{inspect(reason)}"
+        )
+
+        {:error, reason}
     end
   end
 
@@ -242,6 +330,36 @@ defmodule ShowcagoServices.Venues do
     error -> {:error, error}
   end
 
+  defp fetch_thalia_hall_ticketmaster_events do
+    events =
+      @thalia_hall_tm_urls
+      |> Enum.flat_map(fn url ->
+        case Req.get(url: url) do
+          {:ok, %Req.Response{status: status, body: body}}
+          when status in 200..299 and is_map(body) ->
+            get_in(body, ["_embedded", "events"]) || []
+
+          {:ok, %Req.Response{status: status}} ->
+            Logger.warning(
+              "[venue_parser] thalia ticketmaster non-200 status=#{status} url=#{url}"
+            )
+
+            []
+
+          {:error, reason} ->
+            Logger.warning(
+              "[venue_parser] thalia ticketmaster request failed reason=#{inspect(reason)} url=#{url}"
+            )
+
+            []
+        end
+      end)
+
+    {:ok, events}
+  rescue
+    error -> {:error, error}
+  end
+
   @doc """
   Parses The Salt Shed `schedule_html` and creates matched shows.
 
@@ -251,6 +369,19 @@ defmodule ShowcagoServices.Venues do
   def parse_salt_shed_schedule_html_and_create_shows do
     case Repo.get_by(Venue, name: "The Salt Shed") do
       nil -> {:error, :salt_shed_not_found}
+      venue -> parse_schedule_html_and_create_shows(venue)
+    end
+  end
+
+  @doc """
+  Parses Thalia Hall `schedule_html` and creates matched shows.
+
+  This uses stored schedule payload only and does not fetch from the website.
+  """
+  @spec parse_thalia_hall_schedule_html_and_create_shows() :: {:ok, map()} | {:error, atom()}
+  def parse_thalia_hall_schedule_html_and_create_shows do
+    case Repo.get_by(Venue, name: "Thalia Hall") do
+      nil -> {:error, :thalia_hall_not_found}
       venue -> parse_schedule_html_and_create_shows(venue)
     end
   end
@@ -301,6 +432,13 @@ defmodule ShowcagoServices.Venues do
   defp extract_events_from_schedule_payload(payload) when is_binary(payload) do
     case Jason.decode(payload) do
       {:ok, %{"source" => "salt_shed_ticketmaster_api", "events" => events}}
+      when is_list(events) ->
+        events
+        |> Enum.map(&ticketmaster_event_to_event/1)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.uniq_by(fn event -> {event.name, event.start_date} end)
+
+      {:ok, %{"source" => "thalia_hall_ticketmaster_api", "events" => events}}
       when is_list(events) ->
         events
         |> Enum.map(&ticketmaster_event_to_event/1)

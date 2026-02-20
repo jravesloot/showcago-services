@@ -159,6 +159,106 @@ defmodule ShowcagoServices.VenuesTest do
       assert is_list(payload["events"])
       assert Enum.any?(payload["events"], &(&1["name"] == "Stereolab"))
     end
+
+    test "collect_thalia_hall_schedule_html/1 returns not found error when missing" do
+      assert {:error, :thalia_hall_not_found} =
+               Venues.collect_thalia_hall_schedule_html(force: true)
+    end
+
+    test "collect_thalia_hall_schedule_html/1 stores raw api payload" do
+      venue = create_venue!(%{name: "Thalia Hall"})
+
+      fetch_ticketmaster_events_fun = fn ->
+        {:ok,
+         [
+           %{
+             "name" => "Hanumankind",
+             "url" => "https://www.ticketweb.com/event/hanumankind-thalia-hall-tickets/123",
+             "dates" => %{"start" => %{"dateTime" => "2026-03-03T01:00:00Z"}}
+           }
+         ]}
+      end
+
+      assert {:ok, updated, :updated} =
+               Venues.collect_thalia_hall_schedule_html(
+                 force: true,
+                 fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
+               )
+
+      assert updated.id == venue.id
+
+      assert {:ok, payload} = Jason.decode(updated.schedule_html)
+      assert payload["source"] == "thalia_hall_ticketmaster_api"
+      assert is_binary(payload["fetched_at"])
+      assert is_list(payload["events"])
+      assert Enum.any?(payload["events"], &(&1["name"] == "Hanumankind"))
+      assert %DateTime{} = updated.data_last_collected
+    end
+
+    test "collect_thalia_hall_schedule_html/1 skips when recently collected" do
+      venue =
+        create_venue!(%{
+          name: "Thalia Hall",
+          data_last_collected: DateTime.utc_now(:second)
+        })
+
+      fetch_ticketmaster_events_fun = fn ->
+        flunk("fetch_ticketmaster_events_fun should not be called when request is throttled")
+      end
+
+      assert {:ok, same_venue, :skipped} =
+               Venues.collect_thalia_hall_schedule_html(
+                 fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun,
+                 refresh_interval_seconds: 21_600
+               )
+
+      assert same_venue.id == venue.id
+    end
+
+    test "parses shows from stored thalia hall api payload" do
+      {:ok, artist} =
+        %Artist{}
+        |> Artist.changeset(%{name: "Hanumankind"})
+        |> Repo.insert()
+
+      _venue =
+        create_venue!(%{
+          name: "Thalia Hall"
+        })
+
+      fetch_ticketmaster_events_fun = fn ->
+        {:ok,
+         [
+           %{
+             "name" => "Hanumankind",
+             "url" => "https://www.ticketweb.com/event/hanumankind-thalia-hall-tickets/123",
+             "dates" => %{"start" => %{"dateTime" => "2026-03-03T01:00:00Z"}}
+           }
+         ]}
+      end
+
+      assert {:ok, _updated, :updated} =
+               Venues.collect_thalia_hall_schedule_html(
+                 force: true,
+                 fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
+               )
+
+      assert {:ok, result} = Venues.parse_thalia_hall_schedule_html_and_create_shows()
+      assert result.parsed_events_count == 1
+      assert result.matched_events_count == 1
+      assert result.created_shows_count == 1
+
+      show = Repo.one!(from(s in Show))
+
+      assert show.ticket_url ==
+               "https://www.ticketweb.com/event/hanumankind-thalia-hall-tickets/123"
+
+      show_artist_ids =
+        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
+        |> Repo.all()
+
+      assert artist.id in show_artist_ids
+    end
   end
 
   describe "schedule html parsing" do
@@ -285,6 +385,11 @@ defmodule ShowcagoServices.VenuesTest do
 
       assert {:ok, result} = Venues.parse_salt_shed_schedule_html_and_create_shows()
       assert result.created_shows_count == 1
+    end
+
+    test "parse_thalia_hall_schedule_html_and_create_shows/0 returns not found when missing" do
+      assert {:error, :thalia_hall_not_found} =
+               Venues.parse_thalia_hall_schedule_html_and_create_shows()
     end
 
     test "parses shows from stored salt shed api payload" do
