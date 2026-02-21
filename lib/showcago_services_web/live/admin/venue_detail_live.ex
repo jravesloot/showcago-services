@@ -4,6 +4,8 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   alias ShowcagoServices.Shows
   alias ShowcagoServices.Venues
 
+  @chicago_time_zone "America/Chicago"
+
   def mount(%{"id" => id}, _session, socket) do
     venue = Venues.get_venue!(id)
 
@@ -142,7 +144,9 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
               <div>
                 <dt class="font-medium text-slate-900">Data Last Collected</dt>
                 <dd>
-                  <span :if={@venue.data_last_collected}>{@venue.data_last_collected}</span>
+                  <span :if={@venue.data_last_collected}>
+                    {format_chicago_datetime(@venue.data_last_collected)}
+                  </span>
                   <span :if={!@venue.data_last_collected} class="text-slate-400">Never</span>
                 </dd>
               </div>
@@ -191,7 +195,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
                       {show.notes || "Untitled event"}
                     </p>
                     <p class="text-xs text-slate-600">
-                      {Calendar.strftime(show.date, "%A, %B %-d, %Y %I:%M %p")}
+                      {format_chicago_datetime(show.date)}
                     </p>
                     <p class="text-xs text-slate-700">Artists: {artist_names(show)}</p>
                   </div>
@@ -247,4 +251,18 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   defp ignore_feedback_message(false, show), do: "Un-ignored: #{show_title(show)}"
 
   defp show_title(show), do: show.notes || "Untitled event"
+
+  defp format_chicago_datetime(%DateTime{} = datetime) do
+    datetime
+    |> chicago_datetime()
+    |> Calendar.strftime("%A, %B %-d, %Y %I:%M %p")
+    |> Kernel.<>(" CT")
+  end
+
+  defp chicago_datetime(%DateTime{} = datetime) do
+    case DateTime.shift_zone(datetime, @chicago_time_zone) do
+      {:ok, shifted_datetime} -> shifted_datetime
+      _ -> datetime
+    end
+  end
 end

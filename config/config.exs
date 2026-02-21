@@ -13,6 +13,8 @@ config :showcago_services,
 
 config :showcago_services, ShowcagoServices.Repo, migration_timestamps: [type: :utc_datetime]
 
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
 # Configure the endpoint
 config :showcago_services, ShowcagoServicesWeb.Endpoint,
   url: [host: "localhost"],

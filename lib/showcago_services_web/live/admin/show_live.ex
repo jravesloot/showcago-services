@@ -3,6 +3,8 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
 
   alias ShowcagoServices.Shows
 
+  @chicago_time_zone "America/Chicago"
+
   def mount(_params, _session, socket) do
     {:ok,
      socket
@@ -76,9 +78,6 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
               <h2 class="text-xl font-semibold text-slate-900">
                 {Calendar.strftime(date, "%A, %B %-d, %Y")}
               </h2>
-              <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {length(shows)} show(s)
-              </span>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -147,7 +146,17 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
   end
 
   defp show_time(show) do
-    Calendar.strftime(show.date, "%I:%M %p")
+    show.date
+    |> chicago_datetime()
+    |> Calendar.strftime("%I:%M %p")
+    |> Kernel.<>(" CT")
+  end
+
+  defp chicago_datetime(%DateTime{} = datetime) do
+    case DateTime.shift_zone(datetime, @chicago_time_zone) do
+      {:ok, shifted_datetime} -> shifted_datetime
+      _ -> datetime
+    end
   end
 
   defp show_ignored?(%{"show_ignored" => value}) when value in ["true", "1"], do: true

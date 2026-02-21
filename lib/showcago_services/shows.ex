@@ -8,6 +8,8 @@ defmodule ShowcagoServices.Shows do
   alias ShowcagoServices.Repo
   alias ShowcagoServices.Schema.Show
 
+  @chicago_time_zone "America/Chicago"
+
   @spec get_show!(term()) :: Show.t()
   def get_show!(id), do: Repo.get!(Show, id)
 
@@ -34,7 +36,7 @@ defmodule ShowcagoServices.Shows do
   @spec list_upcoming_shows_grouped_by_date(keyword()) :: [{Date.t(), [Show.t()]}]
   def list_upcoming_shows_grouped_by_date(opts \\ []) do
     list_upcoming_shows(opts)
-    |> Enum.group_by(&DateTime.to_date(&1.date))
+    |> Enum.group_by(&chicago_local_date(&1.date))
     |> Enum.sort_by(fn {date, _shows} -> date end, Date)
   end
 
@@ -42,5 +44,12 @@ defmodule ShowcagoServices.Shows do
 
   defp maybe_exclude_ignored(query, false) do
     where(query, [s], s.ignored == false)
+  end
+
+  defp chicago_local_date(%DateTime{} = datetime) do
+    case DateTime.shift_zone(datetime, @chicago_time_zone) do
+      {:ok, shifted_datetime} -> DateTime.to_date(shifted_datetime)
+      _ -> DateTime.to_date(datetime)
+    end
   end
 end
