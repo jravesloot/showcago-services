@@ -5,19 +5,30 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
 
   alias ShowcagoServices.Repo
   alias ShowcagoServices.Schema.Show
+  alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Venues
 
-  test "renders venue schedule html", %{conn: conn} do
+  test "renders venue schedule payload", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{
         name: "The Salt Shed",
-        website: "https://www.saltshedchicago.com",
-        schedule_html: "<div>Upcoming show</div>"
+        website: "https://www.saltshedchicago.com"
       })
+
+    %VenueSource{}
+    |> VenueSource.changeset(%{
+      venue_id: venue.id,
+      source_type: "html_ld_json",
+      raw_payload: "<div>Upcoming show</div>",
+      payload_format: "html",
+      fetched_at: DateTime.utc_now(:second),
+      enabled: true
+    })
+    |> Repo.insert!()
 
     {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
 
-    assert has_element?(view, "#venue-schedule-html")
+    assert has_element?(view, "#venue-schedule-payload")
     assert has_element?(view, "#venue-shows")
     assert render(view) =~ "Upcoming show"
     assert has_element?(view, ~s(a[href="/admin/venues/#{venue.id}/edit"]))

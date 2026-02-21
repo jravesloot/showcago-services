@@ -9,10 +9,9 @@ defmodule ShowcagoServices.Schema.Venue do
     field :state, :string
     field :zip_code, :string
     field :website, :string
-    field :schedule_html, :string
-    field :data_last_collected, :utc_datetime
 
     has_many :shows, ShowcagoServices.Schema.Show
+    has_many :venue_sources, ShowcagoServices.Schema.VenueSource
 
     timestamps(type: :utc_datetime)
   end
@@ -25,20 +24,9 @@ defmodule ShowcagoServices.Schema.Venue do
       :city,
       :state,
       :zip_code,
-      :website,
-      :schedule_html,
-      :data_last_collected
+      :website
     ])
     |> validate_required([:name])
     |> unique_constraint(:name)
-    |> maybe_set_data_last_collected()
-  end
-
-  defp maybe_set_data_last_collected(changeset) do
-    if Map.has_key?(changeset.changes, :schedule_html) do
-      put_change(changeset, :data_last_collected, DateTime.utc_now(:second))
-    else
-      changeset
-    end
   end
 end

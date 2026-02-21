@@ -13,6 +13,8 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
      socket
      |> assign(:page_title, venue.name)
      |> assign(:venue, venue)
+     |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(venue))
+     |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(venue))
      |> assign(:show_ignored, false)
      |> assign(:shows, [])}
   end
@@ -30,17 +32,21 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   end
 
   def handle_event("collect-thalia-schedule", _params, socket) do
-    case Venues.collect_thalia_hall_schedule_html() do
+    case Venues.collect_thalia_hall_schedule_payload() do
       {:ok, updated_venue, :updated} ->
         {:noreply,
          socket
          |> assign(:venue, updated_venue)
+         |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(updated_venue))
+         |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(updated_venue))
          |> put_flash(:info, "Collected Thalia Hall schedule")}
 
       {:ok, same_venue, :skipped} ->
         {:noreply,
          socket
          |> assign(:venue, same_venue)
+         |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(same_venue))
+         |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(same_venue))
          |> put_flash(:info, "Thalia Hall schedule recently collected; skipped")}
 
       {:error, :thalia_hall_not_found} ->
@@ -92,7 +98,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
         <div class="mb-6 flex items-center justify-between gap-4">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">{@venue.name}</h1>
-            <p class="mt-2 text-sm text-gray-600">Venue detail and collected schedule HTML</p>
+            <p class="mt-2 text-sm text-gray-600">Venue detail and collected schedule data</p>
           </div>
 
           <div class="flex items-center gap-2">
@@ -142,12 +148,12 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
                 </dd>
               </div>
               <div>
-                <dt class="font-medium text-slate-900">Data Last Collected</dt>
+                <dt class="font-medium text-slate-900">Source Last Collected</dt>
                 <dd>
-                  <span :if={@venue.data_last_collected}>
-                    {format_chicago_datetime(@venue.data_last_collected)}
+                  <span :if={@last_collected_at}>
+                    {format_chicago_datetime(@last_collected_at)}
                   </span>
-                  <span :if={!@venue.data_last_collected} class="text-slate-400">Never</span>
+                  <span :if={!@last_collected_at} class="text-slate-400">Never</span>
                 </dd>
               </div>
             </dl>
@@ -217,14 +223,14 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
 
         <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div class="border-b border-slate-200 px-4 py-3">
-            <h2 class="text-lg font-semibold text-slate-900">Schedule HTML</h2>
+            <h2 class="text-lg font-semibold text-slate-900">Schedule Payload</h2>
           </div>
 
           <div class="p-4">
             <pre
-              id="venue-schedule-html"
+              id="venue-schedule-payload"
               class="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-4 text-xs text-slate-100"
-            ><%= @venue.schedule_html || "No schedule HTML collected yet." %></pre>
+            ><%= @schedule_payload || "No schedule payload collected yet." %></pre>
           </div>
         </div>
       </ShowcagoServicesWeb.AdminComponents.admin_layout>

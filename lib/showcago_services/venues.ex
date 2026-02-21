@@ -10,17 +10,12 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Repo
   alias ShowcagoServices.Schema.Show
   alias ShowcagoServices.Schema.Venue
+  alias ShowcagoServices.Schema.VenueSource
+  alias ShowcagoServices.Venues.Sources.HtmlLdJson
+  alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
+  alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
-  @default_schedule_refresh_interval_seconds 3_600
-  @default_thalia_hall_refresh_interval_seconds 21_600
   @default_event_artist_match_limit 5
-  @thalia_hall_tm_urls [
-    "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=Mj9g4ZY7tXTmixNb7zMOAP85WPGAfFL8&venueId=rZ7HnEZ17aJq7&source=ticketweb"
-  ]
-  @salt_shed_tm_urls [
-    "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZ917AI5F",
-    "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZ917Amf0"
-  ]
 
   @spec list_venues(keyword()) :: [Venue.t()]
   def list_venues(opts \\ []) do
@@ -122,67 +117,33 @@ defmodule ShowcagoServices.Venues do
   end
 
   @doc """
-  Fetches and stores raw schedule HTML from a venue website.
+  Fetches and stores raw schedule payload from a venue website.
 
-  By default this throttles requests and skips fetches when data was recently collected.
+  By default this throttles requests and skips fetches when source data was recently collected.
   Set `force: true` to bypass throttling.
   """
-  @spec collect_schedule_html(Venue.t(), keyword()) ::
+  @spec collect_schedule_payload(Venue.t(), keyword()) ::
           {:ok, Venue.t(), :updated | :skipped} | {:error, term()}
-  def collect_schedule_html(%Venue{} = venue, opts \\ []) do
-    force? = Keyword.get(opts, :force, false)
-
-    refresh_interval_seconds =
-      Keyword.get(opts, :refresh_interval_seconds, @default_schedule_refresh_interval_seconds)
-
-    fetch_html_fun = Keyword.get(opts, :fetch_html_fun, &fetch_html_from_url/1)
-
-    cond do
-      is_nil(venue.website) or String.trim(venue.website) == "" ->
-        {:error, :missing_website}
-
-      force? or stale_for_collection?(venue.data_last_collected, refresh_interval_seconds) ->
-        do_collect_schedule_html(venue, fetch_html_fun)
-
-      true ->
-        {:ok, venue, :skipped}
-    end
+  def collect_schedule_payload(%Venue{} = venue, opts \\ []) do
+    collect_schedule_payload(venue, HtmlLdJson, opts)
   end
 
   @doc """
-  Collects schedule data for The Salt Shed via API and stores raw payload.
+  Collects schedule data for The Salt Shed via API and stores source payload.
 
   This path does not scrape website HTML. It uses the same Ticketmaster
   endpoints as the Salt Shed event widget and stores the raw API payload in
-  `schedule_html` for later parsing.
+  `venue_sources` for later parsing.
   """
   @spec collect_salt_shed_schedule_data(keyword()) ::
           {:ok, Venue.t(), :updated | :skipped} | {:error, term()}
   def collect_salt_shed_schedule_data(opts \\ []) do
-    case Repo.get_by(Venue, name: "The Salt Shed") do
+    case get_venue_for_source(SaltShedTicketmaster) do
       nil ->
         {:error, :salt_shed_not_found}
 
       venue ->
-        force? = Keyword.get(opts, :force, false)
-
-        refresh_interval_seconds =
-          Keyword.get(opts, :refresh_interval_seconds, @default_schedule_refresh_interval_seconds)
-
-        fetch_ticketmaster_events_fun =
-          Keyword.get(
-            opts,
-            :fetch_ticketmaster_events_fun,
-            &fetch_salt_shed_ticketmaster_events/0
-          )
-
-        cond do
-          force? or stale_for_collection?(venue.data_last_collected, refresh_interval_seconds) ->
-            do_collect_salt_shed_schedule_data(venue, fetch_ticketmaster_events_fun)
-
-          true ->
-            {:ok, venue, :skipped}
-        end
+        collect_schedule_payload(venue, SaltShedTicketmaster, opts)
     end
   end
 
@@ -192,70 +153,15 @@ defmodule ShowcagoServices.Venues do
   This uses a conservative default refresh interval to avoid frequent requests.
   Set `force: true` to bypass throttling.
   """
-  @spec collect_thalia_hall_schedule_html(keyword()) ::
+  @spec collect_thalia_hall_schedule_payload(keyword()) ::
           {:ok, Venue.t(), :updated | :skipped} | {:error, term()}
-  def collect_thalia_hall_schedule_html(opts \\ []) do
-    case Repo.get_by(Venue, name: "Thalia Hall") do
+  def collect_thalia_hall_schedule_payload(opts \\ []) do
+    case get_venue_for_source(ThaliaHallTicketmaster) do
       nil ->
         {:error, :thalia_hall_not_found}
 
       venue ->
-        force? = Keyword.get(opts, :force, false)
-
-        refresh_interval_seconds =
-          Keyword.get(
-            opts,
-            :refresh_interval_seconds,
-            @default_thalia_hall_refresh_interval_seconds
-          )
-
-        fetch_ticketmaster_events_fun =
-          Keyword.get(
-            opts,
-            :fetch_ticketmaster_events_fun,
-            &fetch_thalia_hall_ticketmaster_events/0
-          )
-
-        cond do
-          force? or stale_for_collection?(venue.data_last_collected, refresh_interval_seconds) ->
-            do_collect_thalia_hall_schedule_data(venue, fetch_ticketmaster_events_fun)
-
-          true ->
-            {:ok, venue, :skipped}
-        end
-    end
-  end
-
-  defp do_collect_schedule_html(venue, fetch_html_fun) do
-    with {:ok, html} <- fetch_html_fun.(venue.website),
-         {:ok, updated_venue} <- update_venue(venue, %{schedule_html: html}) do
-      {:ok, updated_venue, :updated}
-    end
-  end
-
-  defp do_collect_thalia_hall_schedule_data(venue, fetch_ticketmaster_events_fun) do
-    with {:ok, tm_events} <- fetch_ticketmaster_events_fun.() do
-      Logger.info("[venue_parser] thalia ticketmaster events fetched count=#{length(tm_events)}")
-
-      payload =
-        Jason.encode!(%{
-          "source" => "thalia_hall_ticketmaster_api",
-          "fetched_at" => DateTime.utc_now(:second) |> DateTime.to_iso8601(),
-          "events" => tm_events
-        })
-
-      update_venue(venue, %{schedule_html: payload})
-      |> case do
-        {:ok, updated_venue} -> {:ok, updated_venue, :updated}
-        {:error, reason} -> {:error, reason}
-      end
-    else
-      {:error, reason} ->
-        Logger.warning(
-          "[venue_parser] thalia ticketmaster fetch failed reason=#{inspect(reason)}"
-        )
-
-        {:error, reason}
+        collect_schedule_payload(venue, ThaliaHallTicketmaster, opts)
     end
   end
 
@@ -266,135 +172,53 @@ defmodule ShowcagoServices.Venues do
       refresh_interval_seconds
   end
 
-  defp fetch_html_from_url(url) do
-    case Req.get(url: url) do
-      {:ok, %Req.Response{status: status, body: body}}
-      when status in 200..299 and is_binary(body) ->
-        {:ok, body}
+  @doc """
+  Parses The Salt Shed source payload and creates matched shows.
 
-      {:ok, %Req.Response{status: status}} ->
-        {:error, {:http_status, status}}
+  This uses stored source payload only and does not fetch from the website/API.
+  """
+  @spec parse_salt_shed_schedule_payload_and_create_shows() :: {:ok, map()} | {:error, atom()}
+  def parse_salt_shed_schedule_payload_and_create_shows do
+    case get_venue_for_source(SaltShedTicketmaster) do
+      nil ->
+        {:error, :salt_shed_not_found}
 
-      {:error, reason} ->
-        {:error, reason}
+      venue ->
+        parse_schedule_payload_and_create_shows(venue, source: SaltShedTicketmaster.source_key())
     end
   end
 
-  defp do_collect_salt_shed_schedule_data(venue, fetch_ticketmaster_events_fun) do
-    with {:ok, tm_events} <- fetch_ticketmaster_events_fun.() do
-      Logger.info("[venue_parser] ticketmaster events fetched count=#{length(tm_events)}")
+  @doc """
+  Parses Thalia Hall source payload and creates matched shows.
 
-      payload =
-        Jason.encode!(%{
-          "source" => "salt_shed_ticketmaster_api",
-          "fetched_at" => DateTime.utc_now(:second) |> DateTime.to_iso8601(),
-          "events" => tm_events
-        })
+  This uses stored source payload only and does not fetch from the website.
+  """
+  @spec parse_thalia_hall_schedule_payload_and_create_shows() :: {:ok, map()} | {:error, atom()}
+  def parse_thalia_hall_schedule_payload_and_create_shows do
+    case get_venue_for_source(ThaliaHallTicketmaster) do
+      nil ->
+        {:error, :thalia_hall_not_found}
 
-      update_venue(venue, %{schedule_html: payload})
-      |> case do
-        {:ok, updated_venue} -> {:ok, updated_venue, :updated}
-        {:error, reason} -> {:error, reason}
-      end
+      venue ->
+        parse_schedule_payload_and_create_shows(venue,
+          source: ThaliaHallTicketmaster.source_key()
+        )
+    end
+  end
+
+  @doc """
+  Parses a venue's source payload, matches artists, and creates shows.
+  """
+  @spec parse_schedule_payload_and_create_shows(Venue.t(), keyword()) ::
+          {:ok, map()} | {:error, atom()}
+  def parse_schedule_payload_and_create_shows(%Venue{} = venue, opts \\ []) do
+    source_module = source_module_for_venue(venue, opts)
+    payload = get_source_payload(venue, source_module)
+
+    if is_nil(payload) or String.trim(payload) == "" do
+      {:error, :missing_schedule_payload}
     else
-      {:error, reason} ->
-        Logger.warning("[venue_parser] ticketmaster fetch failed reason=#{inspect(reason)}")
-        {:error, reason}
-    end
-  end
-
-  defp fetch_salt_shed_ticketmaster_events do
-    events =
-      @salt_shed_tm_urls
-      |> Enum.flat_map(fn url ->
-        case Req.get(url: url) do
-          {:ok, %Req.Response{status: status, body: body}}
-          when status in 200..299 and is_map(body) ->
-            get_in(body, ["_embedded", "events"]) || []
-
-          {:ok, %Req.Response{status: status}} ->
-            Logger.warning("[venue_parser] ticketmaster non-200 status=#{status} url=#{url}")
-            []
-
-          {:error, reason} ->
-            Logger.warning(
-              "[venue_parser] ticketmaster request failed reason=#{inspect(reason)} url=#{url}"
-            )
-
-            []
-        end
-      end)
-
-    {:ok, events}
-  rescue
-    error -> {:error, error}
-  end
-
-  defp fetch_thalia_hall_ticketmaster_events do
-    events =
-      @thalia_hall_tm_urls
-      |> Enum.flat_map(fn url ->
-        case Req.get(url: url) do
-          {:ok, %Req.Response{status: status, body: body}}
-          when status in 200..299 and is_map(body) ->
-            get_in(body, ["_embedded", "events"]) || []
-
-          {:ok, %Req.Response{status: status}} ->
-            Logger.warning(
-              "[venue_parser] thalia ticketmaster non-200 status=#{status} url=#{url}"
-            )
-
-            []
-
-          {:error, reason} ->
-            Logger.warning(
-              "[venue_parser] thalia ticketmaster request failed reason=#{inspect(reason)} url=#{url}"
-            )
-
-            []
-        end
-      end)
-
-    {:ok, events}
-  rescue
-    error -> {:error, error}
-  end
-
-  @doc """
-  Parses The Salt Shed `schedule_html` and creates matched shows.
-
-  This uses stored schedule payload only and does not fetch from the website/API.
-  """
-  @spec parse_salt_shed_schedule_html_and_create_shows() :: {:ok, map()} | {:error, atom()}
-  def parse_salt_shed_schedule_html_and_create_shows do
-    case Repo.get_by(Venue, name: "The Salt Shed") do
-      nil -> {:error, :salt_shed_not_found}
-      venue -> parse_schedule_html_and_create_shows(venue)
-    end
-  end
-
-  @doc """
-  Parses Thalia Hall `schedule_html` and creates matched shows.
-
-  This uses stored schedule payload only and does not fetch from the website.
-  """
-  @spec parse_thalia_hall_schedule_html_and_create_shows() :: {:ok, map()} | {:error, atom()}
-  def parse_thalia_hall_schedule_html_and_create_shows do
-    case Repo.get_by(Venue, name: "Thalia Hall") do
-      nil -> {:error, :thalia_hall_not_found}
-      venue -> parse_schedule_html_and_create_shows(venue)
-    end
-  end
-
-  @doc """
-  Parses a venue's `schedule_html`, matches artists, and creates shows.
-  """
-  @spec parse_schedule_html_and_create_shows(Venue.t()) :: {:ok, map()} | {:error, atom()}
-  def parse_schedule_html_and_create_shows(%Venue{} = venue) do
-    if is_nil(venue.schedule_html) or String.trim(venue.schedule_html) == "" do
-      {:error, :missing_schedule_html}
-    else
-      events = extract_events_from_schedule_payload(venue.schedule_html)
+      events = source_module.extract_events(payload)
 
       result =
         Enum.reduce(events, %{matched: 0, created: 0, skipped: 0}, fn event, acc ->
@@ -429,24 +253,167 @@ defmodule ShowcagoServices.Venues do
     end
   end
 
-  defp extract_events_from_schedule_payload(payload) when is_binary(payload) do
-    case Jason.decode(payload) do
-      {:ok, %{"source" => "salt_shed_ticketmaster_api", "events" => events}}
-      when is_list(events) ->
-        events
-        |> Enum.map(&ticketmaster_event_to_event/1)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.uniq_by(fn event -> {event.name, event.start_date} end)
+  defp source_module_for_venue(%Venue{name: name}), do: source_module_for_venue_name(name)
 
-      {:ok, %{"source" => "thalia_hall_ticketmaster_api", "events" => events}}
-      when is_list(events) ->
-        events
-        |> Enum.map(&ticketmaster_event_to_event/1)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.uniq_by(fn event -> {event.name, event.start_date} end)
+  defp source_module_for_venue(%Venue{} = venue, opts) do
+    source_key = Keyword.get(opts, :source)
 
-      _ ->
-        extract_events_from_html(payload)
+    cond do
+      is_binary(source_key) and String.trim(source_key) != "" ->
+        source_module_for_source_key(source_key, venue.name)
+
+      true ->
+        source_module_for_venue(venue)
+    end
+  end
+
+  defp source_module_for_source_key(source_key, venue_name) do
+    cond do
+      source_key == SaltShedTicketmaster.source_key() -> SaltShedTicketmaster
+      source_key == ThaliaHallTicketmaster.source_key() -> ThaliaHallTicketmaster
+      source_key == HtmlLdJson.source_key() -> HtmlLdJson
+      true -> source_module_for_venue_name(venue_name)
+    end
+  end
+
+  defp source_module_for_venue_name(name) do
+    cond do
+      name == SaltShedTicketmaster.venue_name() -> SaltShedTicketmaster
+      name == ThaliaHallTicketmaster.venue_name() -> ThaliaHallTicketmaster
+      true -> HtmlLdJson
+    end
+  end
+
+  defp get_venue_for_source(source_module) do
+    source_venue =
+      from(vs in VenueSource,
+        where: vs.source_type == ^source_module.source_key() and vs.enabled == true,
+        order_by: [desc: vs.fetched_at, desc: vs.id],
+        join: v in Venue,
+        on: v.id == vs.venue_id,
+        select: v,
+        limit: 1
+      )
+      |> Repo.one()
+
+    source_venue ||
+      Repo.get_by(Venue, name: source_module.venue_name())
+  end
+
+  defp collect_schedule_payload(venue, source_module, opts) do
+    force? = Keyword.get(opts, :force, false)
+
+    refresh_interval_seconds =
+      Keyword.get(
+        opts,
+        :refresh_interval_seconds,
+        source_module.default_refresh_interval_seconds()
+      )
+
+    cond do
+      force? or
+          stale_for_collection?(
+            source_last_collected_at(venue, source_module),
+            refresh_interval_seconds
+          ) ->
+        with {:ok, payload} <- source_module.collect_payload(venue, opts),
+             {:ok, _source_row} <-
+               upsert_source_payload(venue, source_module, payload) do
+          {:ok, venue, :updated}
+        end
+
+      true ->
+        {:ok, venue, :skipped}
+    end
+  end
+
+  defp source_last_collected_at(%Venue{} = venue, source_module) do
+    source_fetched_at =
+      from(vs in VenueSource,
+        where: vs.venue_id == ^venue.id and vs.source_type == ^source_module.source_key(),
+        order_by: [desc: vs.fetched_at, desc: vs.id],
+        select: vs.fetched_at,
+        limit: 1
+      )
+      |> Repo.one()
+
+    source_fetched_at
+  end
+
+  defp upsert_source_payload(%Venue{} = venue, source_module, payload)
+       when is_binary(payload) do
+    attrs = %{
+      venue_id: venue.id,
+      source_type: source_module.source_key(),
+      raw_payload: payload,
+      payload_format: infer_payload_format(payload),
+      fetched_at: DateTime.utc_now(:second),
+      enabled: true,
+      last_error: nil,
+      updated_at: DateTime.utc_now(:second),
+      inserted_at: DateTime.utc_now(:second)
+    }
+
+    Repo.insert_all(VenueSource, [attrs],
+      on_conflict: [
+        set: [
+          raw_payload: payload,
+          payload_format: infer_payload_format(payload),
+          fetched_at: attrs.fetched_at,
+          enabled: true,
+          last_error: nil,
+          updated_at: attrs.updated_at
+        ]
+      ],
+      conflict_target: [:venue_id, :source_type]
+    )
+
+    {:ok,
+     Repo.get_by!(VenueSource,
+       venue_id: venue.id,
+       source_type: source_module.source_key()
+     )}
+  end
+
+  defp get_source_payload(%Venue{} = venue, source_module) do
+    from(vs in VenueSource,
+      where: vs.venue_id == ^venue.id and vs.source_type == ^source_module.source_key(),
+      order_by: [desc: vs.fetched_at, desc: vs.id],
+      select: vs.raw_payload,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  @spec latest_source_payload_for_venue(Venue.t()) :: binary() | nil
+  def latest_source_payload_for_venue(%Venue{} = venue) do
+    from(vs in VenueSource,
+      where: vs.venue_id == ^venue.id,
+      order_by: [desc: vs.fetched_at, desc: vs.id],
+      select: vs.raw_payload,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  @spec latest_source_fetched_at_for_venue(Venue.t()) :: DateTime.t() | nil
+  def latest_source_fetched_at_for_venue(%Venue{} = venue) do
+    from(vs in VenueSource,
+      where: vs.venue_id == ^venue.id,
+      order_by: [desc: vs.fetched_at, desc: vs.id],
+      select: vs.fetched_at,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  defp infer_payload_format(payload) when is_binary(payload) do
+    trimmed = String.trim_leading(payload)
+
+    cond do
+      String.starts_with?(trimmed, "{") -> "json"
+      String.starts_with?(trimmed, "[") -> "json"
+      true -> "html"
     end
   end
 
@@ -498,78 +465,6 @@ defmodule ShowcagoServices.Venues do
       end)
 
     Repo.insert_all("show_artists", rows, on_conflict: :nothing)
-  end
-
-  defp extract_events_from_html(html) do
-    ~r/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/ims
-    |> Regex.scan(html, capture: :all_but_first)
-    |> Enum.map(&List.first/1)
-    |> Enum.map(&String.trim/1)
-    |> Enum.flat_map(&decode_ld_json_events/1)
-    |> Enum.uniq_by(fn event -> {event.name, event.start_date} end)
-  end
-
-  defp ticketmaster_event_to_event(event) when is_map(event) do
-    name = event["name"]
-    url = event["url"]
-
-    start_date =
-      get_in(event, ["dates", "start", "dateTime"]) ||
-        get_in(event, ["dates", "start", "localDate"])
-
-    if is_binary(name) and is_binary(start_date) do
-      %{name: name, start_date: start_date, url: url}
-    end
-  end
-
-  defp ticketmaster_event_to_event(_), do: nil
-
-  defp decode_ld_json_events(json_blob) do
-    case Jason.decode(json_blob) do
-      {:ok, decoded} -> collect_event_objects(decoded)
-      _ -> []
-    end
-  end
-
-  defp collect_event_objects(%{"@graph" => graph}) when is_list(graph) do
-    Enum.flat_map(graph, &collect_event_objects/1)
-  end
-
-  defp collect_event_objects(%{"@type" => type} = object) when is_binary(type) do
-    if String.contains?(String.downcase(type), "event") do
-      build_event_from_object(object)
-    else
-      Enum.flat_map(object, fn {_k, v} -> collect_event_objects(v) end)
-    end
-  end
-
-  defp collect_event_objects(%{"@type" => types} = object) when is_list(types) do
-    if Enum.any?(types, &(is_binary(&1) and String.contains?(String.downcase(&1), "event"))) do
-      build_event_from_object(object)
-    else
-      Enum.flat_map(object, fn {_k, v} -> collect_event_objects(v) end)
-    end
-  end
-
-  defp collect_event_objects(map) when is_map(map) do
-    Enum.flat_map(map, fn {_k, v} -> collect_event_objects(v) end)
-  end
-
-  defp collect_event_objects(list) when is_list(list) do
-    Enum.flat_map(list, &collect_event_objects/1)
-  end
-
-  defp collect_event_objects(_), do: []
-
-  defp build_event_from_object(object) do
-    name = object["name"]
-    start_date = object["startDate"]
-
-    if is_binary(name) and is_binary(start_date) do
-      [%{name: name, start_date: start_date, url: object["url"]}]
-    else
-      []
-    end
   end
 
   defp parse_event_datetime(start_date) when is_binary(start_date) do

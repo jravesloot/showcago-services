@@ -5,6 +5,7 @@ defmodule ShowcagoServices.VenuesTest do
   alias ShowcagoServices.Schema.Artist
   alias ShowcagoServices.Schema.Show
   alias ShowcagoServices.Schema.Venue
+  alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Venues
 
   describe "list_venues/1 and count_venues/1" do
@@ -56,27 +57,6 @@ defmodule ShowcagoServices.VenuesTest do
       assert updated.website == "https://subt.net"
     end
 
-    test "setting schedule_html updates data_last_collected" do
-      venue = create_venue!(%{name: "Lincoln Hall"})
-
-      assert {:ok, %Venue{} = updated} =
-               Venues.update_venue(venue, %{schedule_html: "<div>Upcoming shows</div>"})
-
-      assert updated.schedule_html == "<div>Upcoming shows</div>"
-      assert %DateTime{} = updated.data_last_collected
-    end
-
-    test "setting schedule_html on create sets data_last_collected" do
-      assert {:ok, %Venue{} = venue} =
-               Venues.create_venue(%{
-                 name: "Sleeping Village",
-                 schedule_html: "<ul><li>Show</li></ul>"
-               })
-
-      assert venue.schedule_html == "<ul><li>Show</li></ul>"
-      assert %DateTime{} = venue.data_last_collected
-    end
-
     test "delete_venue/1 removes a venue" do
       venue = create_venue!(%{name: "Thalia Hall"})
 
@@ -92,33 +72,42 @@ defmodule ShowcagoServices.VenuesTest do
     end
   end
 
-  describe "schedule html collection" do
-    test "collect_schedule_html/2 fetches and stores schedule html" do
+  describe "schedule payload collection" do
+    test "collect_schedule_payload/2 stores source payload" do
       venue = create_venue!(%{name: "The Salt Shed", website: "https://example.com"})
 
       fetch_html_fun = fn _url -> {:ok, "<html>salt shed schedule</html>"} end
 
       assert {:ok, updated, :updated} =
-               Venues.collect_schedule_html(venue, fetch_html_fun: fetch_html_fun, force: true)
+               Venues.collect_schedule_payload(venue, fetch_html_fun: fetch_html_fun, force: true)
 
-      assert updated.schedule_html == "<html>salt shed schedule</html>"
-      assert %DateTime{} = updated.data_last_collected
+      assert updated.id == venue.id
+
+      source_row = Repo.get_by!(VenueSource, venue_id: venue.id, source_type: "html_ld_json")
+      assert source_row.raw_payload == "<html>salt shed schedule</html>"
+      assert source_row.payload_format == "html"
     end
 
-    test "collect_schedule_html/2 skips when recently collected" do
+    test "collect_schedule_payload/2 skips when recently collected" do
       venue =
         create_venue!(%{
           name: "Metro",
-          website: "https://example.com",
-          data_last_collected: DateTime.utc_now(:second)
+          website: "https://example.com"
         })
+
+      insert_source_payload!(
+        venue,
+        "html_ld_json",
+        "<html>existing payload</html>",
+        "html"
+      )
 
       fetch_html_fun = fn _url ->
         flunk("fetch_html_fun should not be called when request is throttled")
       end
 
       assert {:ok, same_venue, :skipped} =
-               Venues.collect_schedule_html(
+               Venues.collect_schedule_payload(
                  venue,
                  fetch_html_fun: fetch_html_fun,
                  refresh_interval_seconds: 3_600
@@ -153,19 +142,25 @@ defmodule ShowcagoServices.VenuesTest do
 
       assert updated.id == venue.id
 
-      assert {:ok, payload} = Jason.decode(updated.schedule_html)
+      source_row =
+        Repo.get_by!(VenueSource, venue_id: venue.id, source_type: "salt_shed_ticketmaster")
+
+      assert {:ok, payload} = Jason.decode(source_row.raw_payload)
       assert payload["source"] == "salt_shed_ticketmaster_api"
       assert is_binary(payload["fetched_at"])
       assert is_list(payload["events"])
       assert Enum.any?(payload["events"], &(&1["name"] == "Stereolab"))
+
+      assert source_row.payload_format == "json"
+      assert %DateTime{} = source_row.fetched_at
     end
 
-    test "collect_thalia_hall_schedule_html/1 returns not found error when missing" do
+    test "collect_thalia_hall_schedule_payload/1 returns not found error when missing" do
       assert {:error, :thalia_hall_not_found} =
-               Venues.collect_thalia_hall_schedule_html(force: true)
+               Venues.collect_thalia_hall_schedule_payload(force: true)
     end
 
-    test "collect_thalia_hall_schedule_html/1 stores raw api payload" do
+    test "collect_thalia_hall_schedule_payload/1 stores raw api payload" do
       venue = create_venue!(%{name: "Thalia Hall"})
 
       fetch_ticketmaster_events_fun = fn ->
@@ -180,34 +175,49 @@ defmodule ShowcagoServices.VenuesTest do
       end
 
       assert {:ok, updated, :updated} =
-               Venues.collect_thalia_hall_schedule_html(
+               Venues.collect_thalia_hall_schedule_payload(
                  force: true,
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
                )
 
       assert updated.id == venue.id
 
-      assert {:ok, payload} = Jason.decode(updated.schedule_html)
+      source_row =
+        Repo.get_by!(VenueSource,
+          venue_id: venue.id,
+          source_type: "thalia_hall_ticketmaster"
+        )
+
+      assert {:ok, payload} = Jason.decode(source_row.raw_payload)
       assert payload["source"] == "thalia_hall_ticketmaster_api"
       assert is_binary(payload["fetched_at"])
       assert is_list(payload["events"])
       assert Enum.any?(payload["events"], &(&1["name"] == "Hanumankind"))
-      assert %DateTime{} = updated.data_last_collected
+      assert updated.id == venue.id
+
+      assert source_row.payload_format == "json"
+      assert %DateTime{} = source_row.fetched_at
     end
 
-    test "collect_thalia_hall_schedule_html/1 skips when recently collected" do
+    test "collect_thalia_hall_schedule_payload/1 skips when recently collected" do
       venue =
         create_venue!(%{
-          name: "Thalia Hall",
-          data_last_collected: DateTime.utc_now(:second)
+          name: "Thalia Hall"
         })
+
+      insert_source_payload!(
+        venue,
+        "thalia_hall_ticketmaster",
+        "{\"source\":\"thalia_hall_ticketmaster_api\",\"events\":[]}",
+        "json"
+      )
 
       fetch_ticketmaster_events_fun = fn ->
         flunk("fetch_ticketmaster_events_fun should not be called when request is throttled")
       end
 
       assert {:ok, same_venue, :skipped} =
-               Venues.collect_thalia_hall_schedule_html(
+               Venues.collect_thalia_hall_schedule_payload(
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun,
                  refresh_interval_seconds: 21_600
                )
@@ -238,12 +248,12 @@ defmodule ShowcagoServices.VenuesTest do
       end
 
       assert {:ok, _updated, :updated} =
-               Venues.collect_thalia_hall_schedule_html(
+               Venues.collect_thalia_hall_schedule_payload(
                  force: true,
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
                )
 
-      assert {:ok, result} = Venues.parse_thalia_hall_schedule_html_and_create_shows()
+      assert {:ok, result} = Venues.parse_thalia_hall_schedule_payload_and_create_shows()
       assert result.parsed_events_count == 1
       assert result.matched_events_count == 1
       assert result.created_shows_count == 1
@@ -261,8 +271,8 @@ defmodule ShowcagoServices.VenuesTest do
     end
   end
 
-  describe "schedule html parsing" do
-    test "creates matched shows from stored schedule html" do
+  describe "schedule payload parsing" do
+    test "creates matched shows from stored schedule payload" do
       {:ok, artist} =
         %Artist{}
         |> Artist.changeset(%{name: "James Blake"})
@@ -271,18 +281,25 @@ defmodule ShowcagoServices.VenuesTest do
       venue =
         create_venue!(%{
           name: "The Salt Shed",
-          schedule_html: """
-          <html>
-            <head>
-              <script type=\"application/ld+json\">
-                {"@context":"https://schema.org","@type":"MusicEvent","name":"James Blake with Special Guests","startDate":"2026-11-14T20:00:00-06:00","url":"https://www.saltshedchicago.com/event/james-blake"}
-              </script>
-            </head>
-          </html>
-          """
+          website: "https://example.com"
         })
 
-      assert {:ok, result} = Venues.parse_schedule_html_and_create_shows(venue)
+      insert_source_payload!(
+        venue,
+        "salt_shed_ticketmaster",
+        """
+        <html>
+          <head>
+            <script type=\"application/ld+json\">
+              {"@context":"https://schema.org","@type":"MusicEvent","name":"James Blake with Special Guests","startDate":"2026-11-14T20:00:00-06:00","url":"https://www.saltshedchicago.com/event/james-blake"}
+            </script>
+          </head>
+        </html>
+        """,
+        "html"
+      )
+
+      assert {:ok, result} = Venues.parse_schedule_payload_and_create_shows(venue)
       assert result.parsed_events_count == 1
       assert result.matched_events_count == 1
       assert result.created_shows_count == 1
@@ -311,18 +328,25 @@ defmodule ShowcagoServices.VenuesTest do
       venue =
         create_venue!(%{
           name: "The Salt Shed",
-          schedule_html: """
-          <html>
-            <head>
-              <script type=\"application/ld+json\">
-                {"@context":"https://schema.org","@type":"MusicEvent","name":"Warm Love Cool Dreams- The Jesus and Mary Chain, Tortoise, Smerz +More","startDate":"2026-11-14T20:00:00-06:00","url":"https://www.saltshedchicago.com/event/warm-love-cool-dreams"}
-              </script>
-            </head>
-          </html>
-          """
+          website: "https://example.com"
         })
 
-      assert {:ok, result} = Venues.parse_schedule_html_and_create_shows(venue)
+      insert_source_payload!(
+        venue,
+        "salt_shed_ticketmaster",
+        """
+        <html>
+          <head>
+            <script type=\"application/ld+json\">
+              {"@context":"https://schema.org","@type":"MusicEvent","name":"Warm Love Cool Dreams- The Jesus and Mary Chain, Tortoise, Smerz +More","startDate":"2026-11-14T20:00:00-06:00","url":"https://www.saltshedchicago.com/event/warm-love-cool-dreams"}
+            </script>
+          </head>
+        </html>
+        """,
+        "html"
+      )
+
+      assert {:ok, result} = Venues.parse_schedule_payload_and_create_shows(venue)
       assert result.parsed_events_count == 1
       assert result.matched_events_count == 1
       assert result.created_shows_count == 1
@@ -346,25 +370,33 @@ defmodule ShowcagoServices.VenuesTest do
       venue =
         create_venue!(%{
           name: "The Salt Shed",
-          schedule_html: """
-          <script type=\"application/ld+json\">
-            {"@type":"Event","name":"Rosalia","startDate":"2026-08-01T19:00:00Z","url":"https://example.com/rosalia"}
-          </script>
-          """
+          website: "https://example.com"
         })
 
-      assert {:ok, first_run} = Venues.parse_schedule_html_and_create_shows(venue)
+      insert_source_payload!(
+        venue,
+        "salt_shed_ticketmaster",
+        """
+        <script type=\"application/ld+json\">
+          {"@type":"Event","name":"Rosalia","startDate":"2026-08-01T19:00:00Z","url":"https://example.com/rosalia"}
+        </script>
+        """,
+        "html"
+      )
+
+      assert {:ok, first_run} = Venues.parse_schedule_payload_and_create_shows(venue)
       assert first_run.created_shows_count == 1
 
       venue = Venues.get_venue!(venue.id)
-      assert {:ok, second_run} = Venues.parse_schedule_html_and_create_shows(venue)
+      assert {:ok, second_run} = Venues.parse_schedule_payload_and_create_shows(venue)
       assert second_run.created_shows_count == 0
     end
 
-    test "returns error when schedule html is missing" do
+    test "returns error when schedule payload is missing" do
       venue = create_venue!(%{name: "The Salt Shed"})
 
-      assert {:error, :missing_schedule_html} = Venues.parse_schedule_html_and_create_shows(venue)
+      assert {:error, :missing_schedule_payload} =
+               Venues.parse_schedule_payload_and_create_shows(venue)
     end
 
     test "parses and creates shows through salt shed helper" do
@@ -373,23 +405,60 @@ defmodule ShowcagoServices.VenuesTest do
         |> Artist.changeset(%{name: "Bongzilla"})
         |> Repo.insert()
 
-      _venue =
+      venue =
         create_venue!(%{
           name: "The Salt Shed",
-          schedule_html: """
-          <script type=\"application/ld+json\">
-            {"@type":"MusicEvent","name":"Bongzilla","startDate":"2026-12-01","url":"https://example.com/bongzilla"}
-          </script>
-          """
+          website: "https://example.com"
         })
 
-      assert {:ok, result} = Venues.parse_salt_shed_schedule_html_and_create_shows()
+      insert_source_payload!(
+        venue,
+        "salt_shed_ticketmaster",
+        """
+        <script type=\"application/ld+json\">
+          {"@type":"MusicEvent","name":"Bongzilla","startDate":"2026-12-01","url":"https://example.com/bongzilla"}
+        </script>
+        """,
+        "html"
+      )
+
+      assert {:ok, result} = Venues.parse_salt_shed_schedule_payload_and_create_shows()
       assert result.created_shows_count == 1
     end
 
-    test "parse_thalia_hall_schedule_html_and_create_shows/0 returns not found when missing" do
+    test "parses using source when venue name does not match known names" do
+      {:ok, _artist} =
+        %Artist{}
+        |> Artist.changeset(%{name: "Stereolab"})
+        |> Repo.insert()
+
+      venue =
+        create_venue!(%{
+          name: "Salt Shed Custom",
+          website: "https://example.com"
+        })
+
+      insert_source_payload!(
+        venue,
+        "salt_shed_ticketmaster",
+        """
+        {"source":"salt_shed_ticketmaster_api","events":[{"name":"Stereolab","url":"https://www.axs.com/events/123/stereolab-tickets","dates":{"start":{"dateTime":"2026-09-30T20:00:00-05:00"}}}]}
+        """,
+        "json"
+      )
+
+      assert {:ok, result} =
+               Venues.parse_schedule_payload_and_create_shows(venue,
+                 source: "salt_shed_ticketmaster"
+               )
+
+      assert result.parsed_events_count == 1
+      assert result.created_shows_count == 1
+    end
+
+    test "parse_thalia_hall_schedule_payload_and_create_shows/0 returns not found when missing" do
       assert {:error, :thalia_hall_not_found} =
-               Venues.parse_thalia_hall_schedule_html_and_create_shows()
+               Venues.parse_thalia_hall_schedule_payload_and_create_shows()
     end
 
     test "parses shows from stored salt shed api payload" do
@@ -420,7 +489,7 @@ defmodule ShowcagoServices.VenuesTest do
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
                )
 
-      assert {:ok, result} = Venues.parse_salt_shed_schedule_html_and_create_shows()
+      assert {:ok, result} = Venues.parse_salt_shed_schedule_payload_and_create_shows()
       assert result.parsed_events_count == 1
       assert result.matched_events_count == 1
       assert result.created_shows_count == 1
@@ -439,5 +508,18 @@ defmodule ShowcagoServices.VenuesTest do
   defp create_venue!(attrs) do
     {:ok, venue} = Venues.create_venue(attrs)
     venue
+  end
+
+  defp insert_source_payload!(venue, source_type, payload, payload_format) do
+    %VenueSource{}
+    |> VenueSource.changeset(%{
+      venue_id: venue.id,
+      source_type: source_type,
+      raw_payload: payload,
+      payload_format: payload_format,
+      fetched_at: DateTime.utc_now(:second),
+      enabled: true
+    })
+    |> Repo.insert!()
   end
 end
