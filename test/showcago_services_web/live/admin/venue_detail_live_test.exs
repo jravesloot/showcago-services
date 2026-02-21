@@ -107,6 +107,65 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     assert has_element?(view, "#toggle-ignored-venue-shows", "Hide ignored shows")
   end
 
+  test "can ignore a visible show from venue detail", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    show =
+      %Show{}
+      |> Show.changeset(%{
+        date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+        venue_id: venue.id,
+        notes: "Ignore From Venue"
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    assert has_element?(view, "#toggle-ignore-venue-show-#{show.id}", "Ignore")
+
+    view
+    |> element("#toggle-ignore-venue-show-#{show.id}")
+    |> render_click()
+
+    assert render(view) =~ "Ignored: Ignore From Venue"
+    refute has_element?(view, "li", "Ignore From Venue")
+    assert Repo.get!(Show, show.id).ignored == true
+  end
+
+  test "can un-ignore a show from venue detail when ignored shows are visible", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    show =
+      %Show{}
+      |> Show.changeset(%{
+        date: DateTime.add(DateTime.utc_now(:second), 86_400, :second),
+        venue_id: venue.id,
+        notes: "Unignore From Venue",
+        ignored: true
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}?show_ignored=true")
+
+    assert has_element?(view, "#toggle-ignore-venue-show-#{show.id}", "Un-ignore")
+
+    view
+    |> element("#toggle-ignore-venue-show-#{show.id}")
+    |> render_click()
+
+    assert render(view) =~ "Un-ignored: Unignore From Venue"
+    assert has_element?(view, "#toggle-ignore-venue-show-#{show.id}", "Ignore")
+    assert Repo.get!(Show, show.id).ignored == false
+  end
+
   test "shows collect schedule button for Thalia Hall", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{

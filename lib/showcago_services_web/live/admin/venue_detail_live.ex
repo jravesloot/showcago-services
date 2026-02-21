@@ -1,6 +1,7 @@
 defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   use ShowcagoServicesWeb, :live_view
 
+  alias ShowcagoServices.Shows
   alias ShowcagoServices.Venues
 
   def mount(%{"id" => id}, _session, socket) do
@@ -46,6 +47,39 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
       {:error, reason} ->
         {:noreply,
          put_flash(socket, :error, "Unable to collect Thalia Hall schedule: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event("toggle-ignore-show", %{"id" => id}, socket) do
+    case Integer.parse(id) do
+      {show_id, ""} ->
+        show = Shows.get_show!(show_id)
+
+        if show.venue_id == socket.assigns.venue.id do
+          next_ignored = !show.ignored
+
+          case Shows.set_show_ignored(show, next_ignored) do
+            {:ok, _updated_show} ->
+              {:noreply,
+               socket
+               |> assign(
+                 :shows,
+                 Venues.list_shows_for_venue(
+                   socket.assigns.venue.id,
+                   include_ignored: socket.assigns.show_ignored
+                 )
+               )
+               |> put_flash(:info, ignore_feedback_message(next_ignored, show))}
+
+            {:error, _changeset} ->
+              {:noreply, put_flash(socket, :error, "Unable to update show ignore status")}
+          end
+        else
+          {:noreply, put_flash(socket, :error, "Show does not belong to this venue")}
+        end
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid show selection")}
     end
   end
 
@@ -151,11 +185,27 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
                 id={"venue-show-#{show.id}"}
                 class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
               >
-                <p class="text-sm font-semibold text-slate-900">{show.notes || "Untitled event"}</p>
-                <p class="text-xs text-slate-600">
-                  {Calendar.strftime(show.date, "%A, %B %-d, %Y %I:%M %p")}
-                </p>
-                <p class="text-xs text-slate-700">Artists: {artist_names(show)}</p>
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900">
+                      {show.notes || "Untitled event"}
+                    </p>
+                    <p class="text-xs text-slate-600">
+                      {Calendar.strftime(show.date, "%A, %B %-d, %Y %I:%M %p")}
+                    </p>
+                    <p class="text-xs text-slate-700">Artists: {artist_names(show)}</p>
+                  </div>
+
+                  <button
+                    id={"toggle-ignore-venue-show-#{show.id}"}
+                    type="button"
+                    phx-click="toggle-ignore-show"
+                    phx-value-id={show.id}
+                    class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                  >
+                    {if(show.ignored, do: "Un-ignore", else: "Ignore")}
+                  </button>
+                </div>
               </li>
             </ul>
           </div>
@@ -192,4 +242,9 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
       names -> names
     end
   end
+
+  defp ignore_feedback_message(true, show), do: "Ignored: #{show_title(show)}"
+  defp ignore_feedback_message(false, show), do: "Un-ignored: #{show_title(show)}"
+
+  defp show_title(show), do: show.notes || "Untitled event"
 end
