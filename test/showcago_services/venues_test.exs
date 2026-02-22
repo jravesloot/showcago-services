@@ -102,49 +102,6 @@ defmodule ShowcagoServices.VenuesTest do
       assert updated.id == venue.id
     end
 
-    test "collect_schedule_payload/2 stores source payload" do
-      venue = create_venue!(%{name: "The Salt Shed", website: "https://example.com"})
-
-      fetch_html_fun = fn _url -> {:ok, "<html>salt shed schedule</html>"} end
-
-      assert {:ok, updated, :updated} =
-               Venues.collect_schedule_payload(venue, fetch_html_fun: fetch_html_fun, force: true)
-
-      assert updated.id == venue.id
-
-      source_row = Repo.get_by!(VenueSource, venue_id: venue.id, source_type: "html_ld_json")
-      assert source_row.raw_payload == "<html>salt shed schedule</html>"
-      assert source_row.payload_format == "html"
-    end
-
-    test "collect_schedule_payload/2 skips when recently collected" do
-      venue =
-        create_venue!(%{
-          name: "Metro",
-          website: "https://example.com"
-        })
-
-      insert_source_payload!(
-        venue,
-        "html_ld_json",
-        "<html>existing payload</html>",
-        "html"
-      )
-
-      fetch_html_fun = fn _url ->
-        flunk("fetch_html_fun should not be called when request is throttled")
-      end
-
-      assert {:ok, same_venue, :skipped} =
-               Venues.collect_schedule_payload(
-                 venue,
-                 fetch_html_fun: fetch_html_fun,
-                 refresh_interval_seconds: 3_600
-               )
-
-      assert same_venue.id == venue.id
-    end
-
     test "collect_schedule_payload_for_source/2 returns not found for salt shed when missing" do
       assert {:error, :salt_shed_not_found} =
                Venues.collect_schedule_payload_for_source("salt_shed_ticketmaster", force: true)
@@ -332,15 +289,9 @@ defmodule ShowcagoServices.VenuesTest do
         venue,
         "salt_shed_ticketmaster",
         """
-        <html>
-          <head>
-            <script type=\"application/ld+json\">
-              {"@context":"https://schema.org","@type":"MusicEvent","name":"James Blake with Special Guests","startDate":"2026-11-14T20:00:00-06:00","url":"https://www.saltshedchicago.com/event/james-blake"}
-            </script>
-          </head>
-        </html>
+        {"source":"salt_shed_ticketmaster_api","events":[{"name":"James Blake with Special Guests","url":"https://www.saltshedchicago.com/event/james-blake","dates":{"start":{"dateTime":"2026-11-14T20:00:00-06:00"}}}]}
         """,
-        "html"
+        "json"
       )
 
       assert {:ok, result} = Venues.parse_schedule_payload_and_create_shows(venue)
@@ -379,15 +330,9 @@ defmodule ShowcagoServices.VenuesTest do
         venue,
         "salt_shed_ticketmaster",
         """
-        <html>
-          <head>
-            <script type=\"application/ld+json\">
-              {"@context":"https://schema.org","@type":"MusicEvent","name":"Warm Love Cool Dreams- The Jesus and Mary Chain, Tortoise, Smerz +More","startDate":"2026-11-14T20:00:00-06:00","url":"https://www.saltshedchicago.com/event/warm-love-cool-dreams"}
-            </script>
-          </head>
-        </html>
+        {"source":"salt_shed_ticketmaster_api","events":[{"name":"Warm Love Cool Dreams- The Jesus and Mary Chain, Tortoise, Smerz +More","url":"https://www.saltshedchicago.com/event/warm-love-cool-dreams","dates":{"start":{"dateTime":"2026-11-14T20:00:00-06:00"}}}]}
         """,
-        "html"
+        "json"
       )
 
       assert {:ok, result} = Venues.parse_schedule_payload_and_create_shows(venue)
@@ -421,11 +366,9 @@ defmodule ShowcagoServices.VenuesTest do
         venue,
         "salt_shed_ticketmaster",
         """
-        <script type=\"application/ld+json\">
-          {"@type":"Event","name":"Rosalia","startDate":"2026-08-01T19:00:00Z","url":"https://example.com/rosalia"}
-        </script>
+        {"source":"salt_shed_ticketmaster_api","events":[{"name":"Rosalia","url":"https://example.com/rosalia","dates":{"start":{"dateTime":"2026-08-01T19:00:00Z"}}}]}
         """,
-        "html"
+        "json"
       )
 
       assert {:ok, first_run} = Venues.parse_schedule_payload_and_create_shows(venue)
@@ -436,10 +379,10 @@ defmodule ShowcagoServices.VenuesTest do
       assert second_run.created_shows_count == 0
     end
 
-    test "returns error when schedule payload is missing" do
+    test "returns source_not_configured when no source is configured" do
       venue = create_venue!(%{name: "The Salt Shed"})
 
-      assert {:error, :missing_schedule_payload} =
+      assert {:error, :source_not_configured} =
                Venues.parse_schedule_payload_and_create_shows(venue)
     end
 
@@ -459,11 +402,9 @@ defmodule ShowcagoServices.VenuesTest do
         venue,
         "salt_shed_ticketmaster",
         """
-        <script type=\"application/ld+json\">
-          {"@type":"MusicEvent","name":"Bongzilla","startDate":"2026-12-01","url":"https://example.com/bongzilla"}
-        </script>
+        {"source":"salt_shed_ticketmaster_api","events":[{"name":"Bongzilla","url":"https://example.com/bongzilla","dates":{"start":{"dateTime":"2026-12-01T00:00:00Z"}}}]}
         """,
-        "html"
+        "json"
       )
 
       assert {:ok, result} =

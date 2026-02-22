@@ -11,11 +11,10 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Schema.Show
   alias ShowcagoServices.Schema.Venue
   alias ShowcagoServices.Schema.VenueSource
-  alias ShowcagoServices.Venues.Sources.HtmlLdJson
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
-  @source_modules [HtmlLdJson, SaltShedTicketmaster, ThaliaHallTicketmaster]
+  @source_modules [SaltShedTicketmaster, ThaliaHallTicketmaster]
 
   @default_event_artist_match_limit 5
 
@@ -119,18 +118,6 @@ defmodule ShowcagoServices.Venues do
   end
 
   @doc """
-  Fetches and stores raw schedule payload from a venue website.
-
-  By default this throttles requests and skips fetches when source data was recently collected.
-  Set `force: true` to bypass throttling.
-  """
-  @spec collect_schedule_payload(Venue.t(), keyword()) ::
-          {:ok, Venue.t(), :updated | :skipped} | {:error, term()}
-  def collect_schedule_payload(%Venue{} = venue, opts \\ []) do
-    collect_schedule_payload(venue, HtmlLdJson, opts)
-  end
-
-  @doc """
   Collects schedule payload for a configured source key.
   """
   @spec collect_schedule_payload_for_source(binary(), keyword()) ::
@@ -168,55 +155,60 @@ defmodule ShowcagoServices.Venues do
           {:ok, map()} | {:error, atom()}
   def parse_schedule_payload_and_create_shows(%Venue{} = venue, opts \\ []) do
     source_module = source_module_for_venue(venue, opts)
-    payload = get_source_payload(venue, source_module)
 
-    if is_nil(payload) or String.trim(payload) == "" do
-      {:error, :missing_schedule_payload}
+    if is_nil(source_module) do
+      {:error, :source_not_configured}
     else
-      events = source_module.extract_events(payload)
+      payload = get_source_payload(venue, source_module)
 
-      result =
-        Enum.reduce(events, %{matched: 0, created: 0, skipped: 0}, fn event, acc ->
-          Logger.info("[venue_parser] found event title=\"#{event.name}\" venue_id=#{venue.id}")
+      if is_nil(payload) or String.trim(payload) == "" do
+        {:error, :missing_schedule_payload}
+      else
+        events = source_module.extract_events(payload)
 
-          artist_ids =
-            event.name
-            |> Artists.match_artists_in_text(limit: @default_event_artist_match_limit)
-            |> Enum.map(& &1.artist.id)
-            |> Enum.uniq()
+        result =
+          Enum.reduce(events, %{matched: 0, created: 0, skipped: 0}, fn event, acc ->
+            Logger.info("[venue_parser] found event title=\"#{event.name}\" venue_id=#{venue.id}")
 
-          case artist_ids do
-            [first_artist_id | _] = artist_ids when is_integer(first_artist_id) ->
-              case find_or_create_show(venue, artist_ids, event) do
-                :created -> %{acc | matched: acc.matched + 1, created: acc.created + 1}
-                :existing -> %{acc | matched: acc.matched + 1, skipped: acc.skipped + 1}
-                :invalid_event -> %{acc | skipped: acc.skipped + 1}
-              end
+            artist_ids =
+              event.name
+              |> Artists.match_artists_in_text(limit: @default_event_artist_match_limit)
+              |> Enum.map(& &1.artist.id)
+              |> Enum.uniq()
 
-            _ ->
-              %{acc | skipped: acc.skipped + 1}
-          end
-        end)
+            case artist_ids do
+              [first_artist_id | _] = artist_ids when is_integer(first_artist_id) ->
+                case find_or_create_show(venue, artist_ids, event) do
+                  :created -> %{acc | matched: acc.matched + 1, created: acc.created + 1}
+                  :existing -> %{acc | matched: acc.matched + 1, skipped: acc.skipped + 1}
+                  :invalid_event -> %{acc | skipped: acc.skipped + 1}
+                end
 
-      {:ok,
-       %{
-         parsed_events_count: length(events),
-         matched_events_count: result.matched,
-         created_shows_count: result.created,
-         skipped_events_count: result.skipped
-       }}
+              _ ->
+                %{acc | skipped: acc.skipped + 1}
+            end
+          end)
+
+        {:ok,
+         %{
+           parsed_events_count: length(events),
+           matched_events_count: result.matched,
+           created_shows_count: result.created,
+           skipped_events_count: result.skipped
+         }}
+      end
     end
   end
 
   defp source_module_for_venue(%Venue{} = venue) do
     case latest_source_type_for_venue(venue) do
       nil ->
-        HtmlLdJson
+        nil
 
       source_type ->
         case source_module_for_source_key(source_type) do
           {:ok, source_module} -> source_module
-          {:error, :unknown_source} -> HtmlLdJson
+          {:error, :unknown_source} -> nil
         end
     end
   end

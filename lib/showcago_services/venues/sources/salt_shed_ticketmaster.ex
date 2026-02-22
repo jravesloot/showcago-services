@@ -2,7 +2,6 @@ defmodule ShowcagoServices.Venues.Sources.SaltShedTicketmaster do
   @moduledoc false
 
   @behaviour ShowcagoServices.Venues.Source
-  alias ShowcagoServices.Venues.Sources.HtmlLdJson
 
   require Logger
 
@@ -53,7 +52,7 @@ defmodule ShowcagoServices.Venues.Sources.SaltShedTicketmaster do
         |> Enum.uniq_by(fn event -> {event.name, event.start_date} end)
 
       _ ->
-        HtmlLdJson.extract_events(payload)
+        []
     end
   end
 
