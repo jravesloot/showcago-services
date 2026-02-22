@@ -73,6 +73,35 @@ defmodule ShowcagoServices.VenuesTest do
   end
 
   describe "schedule payload collection" do
+    test "collect_schedule_payload_for_source/2 returns unknown source error" do
+      assert {:error, :unknown_source} =
+               Venues.collect_schedule_payload_for_source("unknown_source", force: true)
+    end
+
+    test "collect_schedule_payload_for_source/2 collects thalia via source key" do
+      venue = create_venue!(%{name: "Thalia Hall"})
+      insert_source_config!(venue, "thalia_hall_ticketmaster")
+
+      fetch_ticketmaster_events_fun = fn ->
+        {:ok,
+         [
+           %{
+             "name" => "Hanumankind",
+             "url" => "https://www.ticketweb.com/event/hanumankind-thalia-hall-tickets/123",
+             "dates" => %{"start" => %{"dateTime" => "2026-03-03T01:00:00Z"}}
+           }
+         ]}
+      end
+
+      assert {:ok, updated, :updated} =
+               Venues.collect_schedule_payload_for_source("thalia_hall_ticketmaster",
+                 force: true,
+                 fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
+               )
+
+      assert updated.id == venue.id
+    end
+
     test "collect_schedule_payload/2 stores source payload" do
       venue = create_venue!(%{name: "The Salt Shed", website: "https://example.com"})
 
@@ -116,12 +145,14 @@ defmodule ShowcagoServices.VenuesTest do
       assert same_venue.id == venue.id
     end
 
-    test "collect_salt_shed_schedule_data/1 returns not found error when missing" do
-      assert {:error, :salt_shed_not_found} = Venues.collect_salt_shed_schedule_data(force: true)
+    test "collect_schedule_payload_for_source/2 returns not found for salt shed when missing" do
+      assert {:error, :salt_shed_not_found} =
+               Venues.collect_schedule_payload_for_source("salt_shed_ticketmaster", force: true)
     end
 
-    test "collect_salt_shed_schedule_data/1 stores raw api payload" do
+    test "collect_schedule_payload_for_source/2 stores raw api payload for salt shed" do
       venue = create_venue!(%{name: "The Salt Shed"})
+      insert_source_config!(venue, "salt_shed_ticketmaster")
 
       fetch_ticketmaster_events_fun = fn ->
         {:ok,
@@ -135,7 +166,7 @@ defmodule ShowcagoServices.VenuesTest do
       end
 
       assert {:ok, updated, :updated} =
-               Venues.collect_salt_shed_schedule_data(
+               Venues.collect_schedule_payload_for_source("salt_shed_ticketmaster",
                  force: true,
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
                )
@@ -155,13 +186,14 @@ defmodule ShowcagoServices.VenuesTest do
       assert %DateTime{} = source_row.fetched_at
     end
 
-    test "collect_thalia_hall_schedule_payload/1 returns not found error when missing" do
+    test "collect_schedule_payload_for_source/2 returns not found for thalia when missing" do
       assert {:error, :thalia_hall_not_found} =
-               Venues.collect_thalia_hall_schedule_payload(force: true)
+               Venues.collect_schedule_payload_for_source("thalia_hall_ticketmaster", force: true)
     end
 
-    test "collect_thalia_hall_schedule_payload/1 stores raw api payload" do
+    test "collect_schedule_payload_for_source/2 stores raw api payload for thalia" do
       venue = create_venue!(%{name: "Thalia Hall"})
+      insert_source_config!(venue, "thalia_hall_ticketmaster")
 
       fetch_ticketmaster_events_fun = fn ->
         {:ok,
@@ -175,7 +207,7 @@ defmodule ShowcagoServices.VenuesTest do
       end
 
       assert {:ok, updated, :updated} =
-               Venues.collect_thalia_hall_schedule_payload(
+               Venues.collect_schedule_payload_for_source("thalia_hall_ticketmaster",
                  force: true,
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
                )
@@ -199,7 +231,7 @@ defmodule ShowcagoServices.VenuesTest do
       assert %DateTime{} = source_row.fetched_at
     end
 
-    test "collect_thalia_hall_schedule_payload/1 skips when recently collected" do
+    test "collect_schedule_payload_for_source/2 skips when recently collected for thalia" do
       venue =
         create_venue!(%{
           name: "Thalia Hall"
@@ -217,7 +249,7 @@ defmodule ShowcagoServices.VenuesTest do
       end
 
       assert {:ok, same_venue, :skipped} =
-               Venues.collect_thalia_hall_schedule_payload(
+               Venues.collect_schedule_payload_for_source("thalia_hall_ticketmaster",
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun,
                  refresh_interval_seconds: 21_600
                )
@@ -236,6 +268,9 @@ defmodule ShowcagoServices.VenuesTest do
           name: "Thalia Hall"
         })
 
+      venue = Repo.get_by!(Venue, name: "Thalia Hall")
+      insert_source_config!(venue, "thalia_hall_ticketmaster")
+
       fetch_ticketmaster_events_fun = fn ->
         {:ok,
          [
@@ -248,12 +283,16 @@ defmodule ShowcagoServices.VenuesTest do
       end
 
       assert {:ok, _updated, :updated} =
-               Venues.collect_thalia_hall_schedule_payload(
+               Venues.collect_schedule_payload_for_source("thalia_hall_ticketmaster",
                  force: true,
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
                )
 
-      assert {:ok, result} = Venues.parse_thalia_hall_schedule_payload_and_create_shows()
+      assert {:ok, result} =
+               Venues.parse_schedule_payload_and_create_shows_for_source(
+                 "thalia_hall_ticketmaster"
+               )
+
       assert result.parsed_events_count == 1
       assert result.matched_events_count == 1
       assert result.created_shows_count == 1
@@ -272,6 +311,11 @@ defmodule ShowcagoServices.VenuesTest do
   end
 
   describe "schedule payload parsing" do
+    test "parse_schedule_payload_and_create_shows_for_source/1 returns unknown source error" do
+      assert {:error, :unknown_source} =
+               Venues.parse_schedule_payload_and_create_shows_for_source("unknown_source")
+    end
+
     test "creates matched shows from stored schedule payload" do
       {:ok, artist} =
         %Artist{}
@@ -422,7 +466,9 @@ defmodule ShowcagoServices.VenuesTest do
         "html"
       )
 
-      assert {:ok, result} = Venues.parse_salt_shed_schedule_payload_and_create_shows()
+      assert {:ok, result} =
+               Venues.parse_schedule_payload_and_create_shows_for_source("salt_shed_ticketmaster")
+
       assert result.created_shows_count == 1
     end
 
@@ -456,9 +502,47 @@ defmodule ShowcagoServices.VenuesTest do
       assert result.created_shows_count == 1
     end
 
-    test "parse_thalia_hall_schedule_payload_and_create_shows/0 returns not found when missing" do
+    test "parse_schedule_payload_and_create_shows_for_source/1 returns not found for thalia when missing" do
       assert {:error, :thalia_hall_not_found} =
-               Venues.parse_thalia_hall_schedule_payload_and_create_shows()
+               Venues.parse_schedule_payload_and_create_shows_for_source(
+                 "thalia_hall_ticketmaster"
+               )
+    end
+
+    test "parse_schedule_payload_and_create_shows_for_source/1 parses salt shed source" do
+      {:ok, artist} =
+        %Artist{}
+        |> Artist.changeset(%{name: "Stereolab"})
+        |> Repo.insert()
+
+      venue =
+        create_venue!(%{
+          name: "The Salt Shed"
+        })
+
+      insert_source_payload!(
+        venue,
+        "salt_shed_ticketmaster",
+        """
+        {"source":"salt_shed_ticketmaster_api","events":[{"name":"Stereolab","url":"https://www.axs.com/events/123/stereolab-tickets","dates":{"start":{"dateTime":"2026-09-30T20:00:00-05:00"}}}]}
+        """,
+        "json"
+      )
+
+      assert {:ok, result} =
+               Venues.parse_schedule_payload_and_create_shows_for_source("salt_shed_ticketmaster")
+
+      assert result.parsed_events_count == 1
+      assert result.created_shows_count == 1
+
+      show = Repo.one!(from(s in Show))
+      assert show.ticket_url == "https://www.axs.com/events/123/stereolab-tickets"
+
+      show_artist_ids =
+        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
+        |> Repo.all()
+
+      assert artist.id in show_artist_ids
     end
 
     test "parses shows from stored salt shed api payload" do
@@ -472,6 +556,9 @@ defmodule ShowcagoServices.VenuesTest do
           name: "The Salt Shed"
         })
 
+      venue = Repo.get_by!(Venue, name: "The Salt Shed")
+      insert_source_config!(venue, "salt_shed_ticketmaster")
+
       fetch_ticketmaster_events_fun = fn ->
         {:ok,
          [
@@ -484,12 +571,14 @@ defmodule ShowcagoServices.VenuesTest do
       end
 
       assert {:ok, _updated, :updated} =
-               Venues.collect_salt_shed_schedule_data(
+               Venues.collect_schedule_payload_for_source("salt_shed_ticketmaster",
                  force: true,
                  fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
                )
 
-      assert {:ok, result} = Venues.parse_salt_shed_schedule_payload_and_create_shows()
+      assert {:ok, result} =
+               Venues.parse_schedule_payload_and_create_shows_for_source("salt_shed_ticketmaster")
+
       assert result.parsed_events_count == 1
       assert result.matched_events_count == 1
       assert result.created_shows_count == 1
@@ -518,6 +607,16 @@ defmodule ShowcagoServices.VenuesTest do
       raw_payload: payload,
       payload_format: payload_format,
       fetched_at: DateTime.utc_now(:second),
+      enabled: true
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_source_config!(venue, source_type) do
+    %VenueSource{}
+    |> VenueSource.changeset(%{
+      venue_id: venue.id,
+      source_type: source_type,
       enabled: true
     })
     |> Repo.insert!()

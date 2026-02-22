@@ -15,6 +15,8 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
+  @source_modules [HtmlLdJson, SaltShedTicketmaster, ThaliaHallTicketmaster]
+
   @default_event_artist_match_limit 5
 
   @spec list_venues(keyword()) :: [Venue.t()]
@@ -129,39 +131,14 @@ defmodule ShowcagoServices.Venues do
   end
 
   @doc """
-  Collects schedule data for The Salt Shed via API and stores source payload.
-
-  This path does not scrape website HTML. It uses the same Ticketmaster
-  endpoints as the Salt Shed event widget and stores the raw API payload in
-  `venue_sources` for later parsing.
+  Collects schedule payload for a configured source key.
   """
-  @spec collect_salt_shed_schedule_data(keyword()) ::
+  @spec collect_schedule_payload_for_source(binary(), keyword()) ::
           {:ok, Venue.t(), :updated | :skipped} | {:error, term()}
-  def collect_salt_shed_schedule_data(opts \\ []) do
-    case get_venue_for_source(SaltShedTicketmaster) do
-      nil ->
-        {:error, :salt_shed_not_found}
-
-      venue ->
-        collect_schedule_payload(venue, SaltShedTicketmaster, opts)
-    end
-  end
-
-  @doc """
-  Collects schedule data for Thalia Hall via API and stores raw payload.
-
-  This uses a conservative default refresh interval to avoid frequent requests.
-  Set `force: true` to bypass throttling.
-  """
-  @spec collect_thalia_hall_schedule_payload(keyword()) ::
-          {:ok, Venue.t(), :updated | :skipped} | {:error, term()}
-  def collect_thalia_hall_schedule_payload(opts \\ []) do
-    case get_venue_for_source(ThaliaHallTicketmaster) do
-      nil ->
-        {:error, :thalia_hall_not_found}
-
-      venue ->
-        collect_schedule_payload(venue, ThaliaHallTicketmaster, opts)
+  def collect_schedule_payload_for_source(source_key, opts \\ []) when is_binary(source_key) do
+    with {:ok, source_module} <- source_module_for_source_key(source_key),
+         {:ok, venue} <- venue_for_source_module(source_module) do
+      collect_schedule_payload(venue, source_module, opts)
     end
   end
 
@@ -173,36 +150,14 @@ defmodule ShowcagoServices.Venues do
   end
 
   @doc """
-  Parses The Salt Shed source payload and creates matched shows.
-
-  This uses stored source payload only and does not fetch from the website/API.
+  Parses and creates shows for a configured source key.
   """
-  @spec parse_salt_shed_schedule_payload_and_create_shows() :: {:ok, map()} | {:error, atom()}
-  def parse_salt_shed_schedule_payload_and_create_shows do
-    case get_venue_for_source(SaltShedTicketmaster) do
-      nil ->
-        {:error, :salt_shed_not_found}
-
-      venue ->
-        parse_schedule_payload_and_create_shows(venue, source: SaltShedTicketmaster.source_key())
-    end
-  end
-
-  @doc """
-  Parses Thalia Hall source payload and creates matched shows.
-
-  This uses stored source payload only and does not fetch from the website.
-  """
-  @spec parse_thalia_hall_schedule_payload_and_create_shows() :: {:ok, map()} | {:error, atom()}
-  def parse_thalia_hall_schedule_payload_and_create_shows do
-    case get_venue_for_source(ThaliaHallTicketmaster) do
-      nil ->
-        {:error, :thalia_hall_not_found}
-
-      venue ->
-        parse_schedule_payload_and_create_shows(venue,
-          source: ThaliaHallTicketmaster.source_key()
-        )
+  @spec parse_schedule_payload_and_create_shows_for_source(binary()) ::
+          {:ok, map()} | {:error, atom()}
+  def parse_schedule_payload_and_create_shows_for_source(source_key) when is_binary(source_key) do
+    with {:ok, source_module} <- source_module_for_source_key(source_key),
+         {:ok, venue} <- venue_for_source_module(source_module) do
+      parse_schedule_payload_and_create_shows(venue, source: source_key)
     end
   end
 
@@ -253,51 +208,74 @@ defmodule ShowcagoServices.Venues do
     end
   end
 
-  defp source_module_for_venue(%Venue{name: name}), do: source_module_for_venue_name(name)
+  defp source_module_for_venue(%Venue{} = venue) do
+    case latest_source_type_for_venue(venue) do
+      nil ->
+        HtmlLdJson
+
+      source_type ->
+        case source_module_for_source_key(source_type) do
+          {:ok, source_module} -> source_module
+          {:error, :unknown_source} -> HtmlLdJson
+        end
+    end
+  end
 
   defp source_module_for_venue(%Venue{} = venue, opts) do
-    source_key = Keyword.get(opts, :source)
+    case Keyword.get(opts, :source) do
+      source_key when is_binary(source_key) and source_key != "" ->
+        case source_module_for_source_key(source_key) do
+          {:ok, source_module} -> source_module
+          _ -> source_module_for_venue(venue)
+        end
 
-    cond do
-      is_binary(source_key) and String.trim(source_key) != "" ->
-        source_module_for_source_key(source_key, venue.name)
-
-      true ->
+      _ ->
         source_module_for_venue(venue)
     end
   end
 
-  defp source_module_for_source_key(source_key, venue_name) do
-    cond do
-      source_key == SaltShedTicketmaster.source_key() -> SaltShedTicketmaster
-      source_key == ThaliaHallTicketmaster.source_key() -> ThaliaHallTicketmaster
-      source_key == HtmlLdJson.source_key() -> HtmlLdJson
-      true -> source_module_for_venue_name(venue_name)
-    end
-  end
-
-  defp source_module_for_venue_name(name) do
-    cond do
-      name == SaltShedTicketmaster.venue_name() -> SaltShedTicketmaster
-      name == ThaliaHallTicketmaster.venue_name() -> ThaliaHallTicketmaster
-      true -> HtmlLdJson
+  defp source_module_for_source_key(source_key) do
+    case Enum.find(@source_modules, &(&1.source_key() == source_key)) do
+      nil -> {:error, :unknown_source}
+      source_module -> {:ok, source_module}
     end
   end
 
   defp get_venue_for_source(source_module) do
-    source_venue =
-      from(vs in VenueSource,
-        where: vs.source_type == ^source_module.source_key() and vs.enabled == true,
-        order_by: [desc: vs.fetched_at, desc: vs.id],
-        join: v in Venue,
-        on: v.id == vs.venue_id,
-        select: v,
-        limit: 1
-      )
-      |> Repo.one()
+    from(vs in VenueSource,
+      where: vs.source_type == ^source_module.source_key() and vs.enabled == true,
+      order_by: [desc: vs.fetched_at, desc: vs.id],
+      join: v in Venue,
+      on: v.id == vs.venue_id,
+      select: v,
+      limit: 1
+    )
+    |> Repo.one()
+  end
 
-    source_venue ||
-      Repo.get_by(Venue, name: source_module.venue_name())
+  defp latest_source_type_for_venue(%Venue{} = venue) do
+    from(vs in VenueSource,
+      where: vs.venue_id == ^venue.id and vs.enabled == true,
+      order_by: [desc: vs.fetched_at, desc: vs.id],
+      select: vs.source_type,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  defp venue_for_source_module(source_module) do
+    case get_venue_for_source(source_module) do
+      nil -> {:error, not_found_error_for_source(source_module.source_key())}
+      venue -> {:ok, venue}
+    end
+  end
+
+  defp not_found_error_for_source(source_key) do
+    cond do
+      source_key == SaltShedTicketmaster.source_key() -> :salt_shed_not_found
+      source_key == ThaliaHallTicketmaster.source_key() -> :thalia_hall_not_found
+      true -> :venue_not_found_for_source
+    end
   end
 
   defp collect_schedule_payload(venue, source_module, opts) do

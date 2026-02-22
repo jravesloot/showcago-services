@@ -32,7 +32,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   end
 
   def handle_event("collect-thalia-schedule", _params, socket) do
-    case Venues.collect_thalia_hall_schedule_payload() do
+    case Venues.collect_schedule_payload_for_source("thalia_hall_ticketmaster") do
       {:ok, updated_venue, :updated} ->
         {:noreply,
          socket
