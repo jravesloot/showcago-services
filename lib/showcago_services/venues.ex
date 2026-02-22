@@ -48,7 +48,7 @@ defmodule ShowcagoServices.Venues do
     Show
     |> where([s], s.venue_id == ^venue_id)
     |> maybe_exclude_ignored_shows(include_ignored)
-    |> order_by([s], desc: s.date)
+    |> order_by([s], asc: s.date)
     |> preload([:artists])
     |> Repo.all()
   end
@@ -330,7 +330,9 @@ defmodule ShowcagoServices.Venues do
   defp source_last_collected_at(%Venue{} = venue, source_module) do
     source_fetched_at =
       from(vs in VenueSource,
-        where: vs.venue_id == ^venue.id and vs.source_type == ^source_module.source_key(),
+        where:
+          vs.venue_id == ^venue.id and vs.source_type == ^source_module.source_key() and
+            not is_nil(vs.fetched_at),
         order_by: [desc: vs.fetched_at, desc: vs.id],
         select: vs.fetched_at,
         limit: 1
@@ -399,7 +401,7 @@ defmodule ShowcagoServices.Venues do
   @spec latest_source_fetched_at_for_venue(Venue.t()) :: DateTime.t() | nil
   def latest_source_fetched_at_for_venue(%Venue{} = venue) do
     from(vs in VenueSource,
-      where: vs.venue_id == ^venue.id,
+      where: vs.venue_id == ^venue.id and not is_nil(vs.fetched_at),
       order_by: [desc: vs.fetched_at, desc: vs.id],
       select: vs.fetched_at,
       limit: 1

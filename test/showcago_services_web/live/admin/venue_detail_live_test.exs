@@ -34,6 +34,50 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     assert has_element?(view, ~s(a[href="/admin/venues/#{venue.id}/edit"]))
   end
 
+  test "renders source last collected from latest non-nil fetched_at", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    collected_at = ~U[2026-02-21 18:30:00Z]
+
+    %VenueSource{}
+    |> VenueSource.changeset(%{
+      venue_id: venue.id,
+      source_type: "html_ld_json",
+      raw_payload: "<div>Older payload</div>",
+      payload_format: "html",
+      fetched_at: collected_at,
+      enabled: true
+    })
+    |> Repo.insert!()
+
+    %VenueSource{}
+    |> VenueSource.changeset(%{
+      venue_id: venue.id,
+      source_type: "salt_shed_ticketmaster",
+      raw_payload: "<div>Newer payload with nil timestamp</div>",
+      payload_format: "html",
+      fetched_at: nil,
+      enabled: true
+    })
+    |> Repo.insert!()
+
+    expected_label =
+      collected_at
+      |> DateTime.shift_zone!("America/Chicago")
+      |> Calendar.strftime("%A, %B %-d, %Y %I:%M %p")
+      |> Kernel.<>(" CT")
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    assert has_element?(view, "dt", "Source Last Collected")
+    assert render(view) =~ expected_label
+    refute render(view) =~ "Never"
+  end
+
   test "renders shows for the current venue", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{
