@@ -93,6 +93,9 @@ defmodule ShowcagoServices.Venues do
   @spec get_venue!(term()) :: Venue.t()
   def get_venue!(id), do: Repo.get!(Venue, id)
 
+  @spec get_venue_by_name(binary()) :: Venue.t() | nil
+  def get_venue_by_name(name) when is_binary(name), do: Repo.get_by(Venue, name: name)
+
   @spec create_venue(map()) :: {:ok, Venue.t()} | {:error, Ecto.Changeset.t()}
   def create_venue(attrs \\ %{}) do
     %Venue{}

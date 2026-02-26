@@ -33,6 +33,9 @@ defmodule ShowcagoServices.Events do
   @spec get_venue!(term()) :: Venue.t()
   defdelegate get_venue!(id), to: Venues
 
+  @spec get_venue_by_name(binary()) :: Venue.t() | nil
+  defdelegate get_venue_by_name(name), to: Venues
+
   @spec create_venue(map()) :: {:ok, Venue.t()} | {:error, Ecto.Changeset.t()}
   defdelegate create_venue(attrs \\ %{}), to: Venues
 

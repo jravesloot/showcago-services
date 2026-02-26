@@ -40,6 +40,14 @@ defmodule ShowcagoServices.VenuesTest do
   end
 
   describe "venue CRUD" do
+    test "get_venue_by_name/1 returns matching venue or nil" do
+      venue = create_venue!(%{name: "Lincoln Hall", city: "Chicago"})
+
+      assert %Venue{id: venue_id} = Venues.get_venue_by_name("Lincoln Hall")
+      assert venue_id == venue.id
+      assert Venues.get_venue_by_name("Missing Venue") == nil
+    end
+
     test "create_venue/1 inserts a venue" do
       attrs = %{name: "The Vic", city: "Chicago", address: "3145 N Sheffield Ave"}
 
