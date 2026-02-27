@@ -23,6 +23,8 @@ end
 config :showcago_services, ShowcagoServicesWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+config :showcago_services, :telegram_bot_token, System.get_env("TELEGRAM_BOT_TOKEN")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

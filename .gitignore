@@ -15,7 +15,10 @@
 # Environment files (keep template)
 .env
 .env.*
+.envrc
+.envrc.*
 !.env.example
+!.envrc.example
 
 # Local database bind mount
 /data/postgres/

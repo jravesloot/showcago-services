@@ -40,6 +40,7 @@ defmodule ShowcagoServices.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:telegram, github: "visciang/telegram", tag: "2.1.1"},
       {:tidewave, "~> 0.5", only: :dev},
       {:phoenix, "~> 1.8.3"},
       {:phoenix_ecto, "~> 4.5"},

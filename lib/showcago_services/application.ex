@@ -7,16 +7,15 @@ defmodule ShowcagoServices.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      ShowcagoServicesWeb.Telemetry,
-      ShowcagoServices.Repo,
-      {DNSCluster, query: Application.get_env(:showcago_services, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: ShowcagoServices.PubSub},
-      # Start a worker by calling: ShowcagoServices.Worker.start_link(arg)
-      # {ShowcagoServices.Worker, arg},
-      # Start to serve requests, typically the last entry
-      ShowcagoServicesWeb.Endpoint
-    ]
+    children =
+      [
+        ShowcagoServicesWeb.Telemetry,
+        ShowcagoServices.Repo,
+        {DNSCluster,
+         query: Application.get_env(:showcago_services, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: ShowcagoServices.PubSub},
+        ShowcagoServicesWeb.Endpoint
+      ] ++ telegram_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -30,5 +29,20 @@ defmodule ShowcagoServices.Application do
   def config_change(changed, _new, removed) do
     ShowcagoServicesWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp telegram_children do
+    case Application.get_env(:showcago_services, :telegram_bot_token) do
+      token when is_binary(token) and token != "" ->
+        bot_config = [token: token, allowed_updates: ["message"]]
+
+        [
+          {Finch, name: ShowcagoServices.TelegramFinch},
+          {Telegram.Poller, bots: [{ShowcagoServices.TelegramBot, bot_config}]}
+        ]
+
+      _ ->
+        []
+    end
   end
 end
