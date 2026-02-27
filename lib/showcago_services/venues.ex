@@ -120,6 +120,49 @@ defmodule ShowcagoServices.Venues do
     Venue.changeset(venue, attrs)
   end
 
+  @spec list_venue_sources(Venue.t()) :: [VenueSource.t()]
+  def list_venue_sources(%Venue{} = venue) do
+    from(vs in VenueSource,
+      where: vs.venue_id == ^venue.id,
+      order_by: [asc: vs.source_key, desc: vs.fetched_at, desc: vs.id]
+    )
+    |> Repo.all()
+  end
+
+  @spec get_venue_source(Venue.t(), term()) :: VenueSource.t() | nil
+  def get_venue_source(%Venue{} = venue, id) do
+    Repo.get_by(VenueSource, id: id, venue_id: venue.id)
+  end
+
+  @spec change_venue_source(VenueSource.t(), map()) :: Ecto.Changeset.t()
+  def change_venue_source(%VenueSource{} = venue_source, attrs \\ %{}) do
+    VenueSource.changeset(venue_source, attrs)
+  end
+
+  @spec create_venue_source(Venue.t(), map()) ::
+          {:ok, VenueSource.t()} | {:error, Ecto.Changeset.t()}
+  def create_venue_source(%Venue{} = venue, attrs) when is_map(attrs) do
+    attrs = Map.put(attrs, "venue_id", venue.id)
+
+    %VenueSource{}
+    |> VenueSource.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec update_venue_source(VenueSource.t(), map()) ::
+          {:ok, VenueSource.t()} | {:error, Ecto.Changeset.t()}
+  def update_venue_source(%VenueSource{} = venue_source, attrs) when is_map(attrs) do
+    venue_source
+    |> VenueSource.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @spec delete_venue_source(VenueSource.t()) ::
+          {:ok, VenueSource.t()} | {:error, Ecto.Changeset.t()}
+  def delete_venue_source(%VenueSource{} = venue_source) do
+    Repo.delete(venue_source)
+  end
+
   @doc """
   Collects schedule payload for a configured source key.
   """

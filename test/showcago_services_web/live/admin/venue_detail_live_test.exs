@@ -244,4 +244,101 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
 
     refute has_element?(view, "#collect-thalia-schedule")
   end
+
+  test "can add a venue source and view its raw payload", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    view
+    |> form("#venue-source-form", %{
+      "venue_source" => %{
+        "source_key" => "thalia_hall_ticketmaster",
+        "enabled" => "true",
+        "payload_format" => "json",
+        "raw_payload" => "{\"events\": []}"
+      }
+    })
+    |> render_submit()
+
+    assert render(view) =~ "Source added"
+    assert has_element?(view, "#venue-sources-list", "thalia_hall_ticketmaster")
+    assert has_element?(view, "#venue-sources-list", "{\"events\": []}")
+  end
+
+  test "can edit an existing venue source", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    source =
+      %VenueSource{}
+      |> VenueSource.changeset(%{
+        venue_id: venue.id,
+        source_key: "salt_shed_ticketmaster",
+        payload_format: "json",
+        raw_payload: "{\"events\": [1]}",
+        enabled: true
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    view
+    |> element("#edit-source-#{source.id}")
+    |> render_click()
+
+    view
+    |> form("#venue-source-form", %{
+      "venue_source" => %{
+        "source_key" => "salt_shed_ticketmaster",
+        "enabled" => "false",
+        "payload_format" => "html",
+        "raw_payload" => "<div>updated</div>"
+      }
+    })
+    |> render_submit()
+
+    assert render(view) =~ "Source updated"
+    assert has_element?(view, "#venue-sources-list", "<div>updated</div>")
+
+    updated_source = Repo.get!(VenueSource, source.id)
+    assert updated_source.enabled == false
+    assert updated_source.payload_format == "html"
+  end
+
+  test "can delete an existing venue source", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "The Salt Shed",
+        website: "https://www.saltshedchicago.com"
+      })
+
+    source =
+      %VenueSource{}
+      |> VenueSource.changeset(%{
+        venue_id: venue.id,
+        source_key: "salt_shed_ticketmaster",
+        payload_format: "json",
+        raw_payload: "{\"events\": [1]}",
+        enabled: true
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    view
+    |> element("#delete-source-#{source.id}")
+    |> render_click()
+
+    assert render(view) =~ "Source deleted"
+    refute has_element?(view, "#venue-source-#{source.id}")
+    assert Repo.get(VenueSource, source.id) == nil
+  end
 end

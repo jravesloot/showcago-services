@@ -1,6 +1,7 @@
 defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   use ShowcagoServicesWeb, :live_view
 
+  alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Shows
   alias ShowcagoServices.Venues
 
@@ -15,6 +16,9 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
      |> assign(:venue, venue)
      |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(venue))
      |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(venue))
+     |> assign(:venue_sources, Venues.list_venue_sources(venue))
+     |> assign(:editing_source_id, nil)
+     |> assign(:source_form, to_form(Venues.change_venue_source(%VenueSource{})))
      |> assign(:show_ignored, false)
      |> assign(:shows, [])}
   end
@@ -88,6 +92,103 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
 
       _ ->
         {:noreply, put_flash(socket, :error, "Invalid show selection")}
+    end
+  end
+
+  def handle_event("validate-source", %{"venue_source" => source_params}, socket) do
+    changeset =
+      socket
+      |> source_changeset_for_editing(source_params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :source_form, to_form(changeset))}
+  end
+
+  def handle_event("save-source", %{"venue_source" => source_params}, socket) do
+    case socket.assigns.editing_source_id do
+      nil ->
+        case Venues.create_venue_source(socket.assigns.venue, source_params) do
+          {:ok, _source} ->
+            {:noreply,
+             socket
+             |> refresh_source_assigns()
+             |> reset_source_form()
+             |> put_flash(:info, "Source added")}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :source_form, to_form(changeset))}
+        end
+
+      editing_source_id ->
+        case Venues.get_venue_source(socket.assigns.venue, editing_source_id) do
+          nil ->
+            {:noreply,
+             socket
+             |> reset_source_form()
+             |> put_flash(:error, "Source not found")}
+
+          source ->
+            case Venues.update_venue_source(source, source_params) do
+              {:ok, _updated_source} ->
+                {:noreply,
+                 socket
+                 |> refresh_source_assigns()
+                 |> reset_source_form()
+                 |> put_flash(:info, "Source updated")}
+
+              {:error, changeset} ->
+                {:noreply, assign(socket, :source_form, to_form(changeset))}
+            end
+        end
+    end
+  end
+
+  def handle_event("edit-source", %{"id" => id}, socket) do
+    case Integer.parse(id) do
+      {source_id, ""} ->
+        case Venues.get_venue_source(socket.assigns.venue, source_id) do
+          nil ->
+            {:noreply, put_flash(socket, :error, "Source not found")}
+
+          source ->
+            {:noreply,
+             socket
+             |> assign(:editing_source_id, source.id)
+             |> assign(:source_form, to_form(Venues.change_venue_source(source)))}
+        end
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid source selection")}
+    end
+  end
+
+  def handle_event("cancel-source-edit", _params, socket) do
+    {:noreply, reset_source_form(socket)}
+  end
+
+  def handle_event("delete-source", %{"id" => id}, socket) do
+    case Integer.parse(id) do
+      {source_id, ""} ->
+        case Venues.get_venue_source(socket.assigns.venue, source_id) do
+          nil ->
+            {:noreply, put_flash(socket, :error, "Source not found")}
+
+          source ->
+            case Venues.delete_venue_source(source) do
+              {:ok, _deleted_source} ->
+                {:noreply,
+                 socket
+                 |> refresh_source_assigns()
+                 |> reset_source_form()
+                 |> put_flash(:info, "Source deleted")}
+
+              {:error, _changeset} ->
+                {:noreply, put_flash(socket, :error, "Unable to delete source")}
+            end
+        end
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid source selection")}
     end
   end
 
@@ -221,9 +322,103 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
           </div>
         </div>
 
+        <div class="mb-6 rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-4 py-3">
+            <h2 class="text-lg font-semibold text-slate-900">Sources</h2>
+          </div>
+
+          <div class="p-4">
+            <div id="venue-sources-list" class="mb-4">
+              <div :if={@venue_sources == []} class="text-sm text-slate-500">
+                No sources configured yet.
+              </div>
+
+              <ul :if={@venue_sources != []} class="space-y-3">
+                <li
+                  :for={source <- @venue_sources}
+                  id={"venue-source-#{source.id}"}
+                  class="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                >
+                  <div class="mb-2 flex items-start justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">{source.source_key}</p>
+                      <p class="text-xs text-slate-600">
+                        Enabled: {if(source.enabled, do: "Yes", else: "No")}
+                      </p>
+                      <p class="text-xs text-slate-600">
+                        Last collected: {format_source_fetched_at(source.fetched_at)}
+                      </p>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <button
+                        id={"edit-source-#{source.id}"}
+                        type="button"
+                        phx-click="edit-source"
+                        phx-value-id={source.id}
+                        class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        id={"delete-source-#{source.id}"}
+                        type="button"
+                        phx-click="delete-source"
+                        phx-value-id={source.id}
+                        class="inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <pre
+                    id={"source-raw-payload-#{source.id}"}
+                    class="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-3 text-xs text-slate-100"
+                  >{source.raw_payload || "No source payload yet."}</pre>
+                </li>
+              </ul>
+            </div>
+
+            <.form
+              id="venue-source-form"
+              for={@source_form}
+              phx-change="validate-source"
+              phx-submit="save-source"
+              class="space-y-3"
+            >
+              <.input field={@source_form[:source_key]} label="Source key" type="text" />
+              <.input field={@source_form[:enabled]} label="Enabled" type="checkbox" />
+              <.input field={@source_form[:payload_format]} label="Payload format" type="text" />
+              <.input field={@source_form[:raw_payload]} label="Raw payload" type="textarea" rows="6" />
+
+              <div class="flex items-center gap-2">
+                <button
+                  id="save-venue-source"
+                  type="submit"
+                  class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+                >
+                  {if(@editing_source_id, do: "Update Source", else: "Add Source")}
+                </button>
+
+                <button
+                  :if={@editing_source_id}
+                  id="cancel-venue-source-edit"
+                  type="button"
+                  phx-click="cancel-source-edit"
+                  class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </.form>
+          </div>
+        </div>
+
         <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div class="border-b border-slate-200 px-4 py-3">
-            <h2 class="text-lg font-semibold text-slate-900">Schedule Payload</h2>
+            <h2 class="text-lg font-semibold text-slate-900">Latest Schedule Payload</h2>
           </div>
 
           <div class="p-4">
@@ -243,6 +438,34 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   defp show_ignored?(%{"show_ignored" => value}) when value in ["true", "1"], do: true
   defp show_ignored?(_params), do: false
 
+  defp source_changeset_for_editing(socket, source_params) do
+    case socket.assigns.editing_source_id do
+      nil ->
+        Venues.change_venue_source(%VenueSource{}, source_params)
+
+      editing_source_id ->
+        case Venues.get_venue_source(socket.assigns.venue, editing_source_id) do
+          nil -> Venues.change_venue_source(%VenueSource{}, source_params)
+          source -> Venues.change_venue_source(source, source_params)
+        end
+    end
+  end
+
+  defp refresh_source_assigns(socket) do
+    venue = socket.assigns.venue
+
+    socket
+    |> assign(:venue_sources, Venues.list_venue_sources(venue))
+    |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(venue))
+    |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(venue))
+  end
+
+  defp reset_source_form(socket) do
+    socket
+    |> assign(:editing_source_id, nil)
+    |> assign(:source_form, to_form(Venues.change_venue_source(%VenueSource{})))
+  end
+
   defp artist_names(show) do
     show.artists
     |> Enum.map(& &1.name)
@@ -257,6 +480,9 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
   defp ignore_feedback_message(false, show), do: "Un-ignored: #{show_title(show)}"
 
   defp show_title(show), do: show.notes || "Untitled event"
+
+  defp format_source_fetched_at(nil), do: "Not collected"
+  defp format_source_fetched_at(%DateTime{} = datetime), do: format_chicago_datetime(datetime)
 
   defp format_chicago_datetime(%DateTime{} = datetime) do
     datetime
