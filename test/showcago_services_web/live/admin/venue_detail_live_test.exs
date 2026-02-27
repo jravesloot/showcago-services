@@ -8,7 +8,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
   alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Venues
 
-  test "renders venue schedule payload", %{conn: conn} do
+  test "renders venue sources and raw payload", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{
         name: "The Salt Shed",
@@ -28,7 +28,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
 
-    assert has_element?(view, "#venue-schedule-payload")
+    assert has_element?(view, "#venue-sources-list")
     assert has_element?(view, "#venue-shows")
     assert render(view) =~ "Upcoming show"
     assert has_element?(view, ~s(a[href="/admin/venues/#{venue.id}/edit"]))
@@ -221,7 +221,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     assert Repo.get!(Show, show.id).ignored == false
   end
 
-  test "shows collect schedule button for Thalia Hall", %{conn: conn} do
+  test "shows collect source data button for Thalia Hall", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{
         name: "Thalia Hall",
@@ -230,10 +230,10 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
 
-    assert has_element?(view, "#collect-thalia-schedule", "Collect Schedule")
+    assert has_element?(view, "#collect-thalia-schedule", "Collect Source Data")
   end
 
-  test "does not show collect schedule button for non-Thalia venues", %{conn: conn} do
+  test "does not show collect source data button for non-Thalia venues", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{
         name: "The Salt Shed",
@@ -253,6 +253,10 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
       })
 
     {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    view
+    |> element("#show-source-form")
+    |> render_click()
 
     view
     |> form("#venue-source-form", %{

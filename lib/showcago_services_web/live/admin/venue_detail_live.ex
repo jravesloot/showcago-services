@@ -14,10 +14,10 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
      socket
      |> assign(:page_title, venue.name)
      |> assign(:venue, venue)
-     |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(venue))
      |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(venue))
      |> assign(:venue_sources, Venues.list_venue_sources(venue))
      |> assign(:editing_source_id, nil)
+     |> assign(:show_source_form, false)
      |> assign(:source_form, to_form(Venues.change_venue_source(%VenueSource{})))
      |> assign(:show_ignored, false)
      |> assign(:shows, [])}
@@ -41,24 +41,26 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
         {:noreply,
          socket
          |> assign(:venue, updated_venue)
-         |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(updated_venue))
          |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(updated_venue))
-         |> put_flash(:info, "Collected Thalia Hall schedule")}
+         |> put_flash(:info, "Collected Thalia Hall source data")}
 
       {:ok, same_venue, :skipped} ->
         {:noreply,
          socket
          |> assign(:venue, same_venue)
-         |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(same_venue))
          |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(same_venue))
-         |> put_flash(:info, "Thalia Hall schedule recently collected; skipped")}
+         |> put_flash(:info, "Thalia Hall source data recently collected; skipped")}
 
       {:error, :thalia_hall_not_found} ->
         {:noreply, put_flash(socket, :error, "Thalia Hall venue not found")}
 
       {:error, reason} ->
         {:noreply,
-         put_flash(socket, :error, "Unable to collect Thalia Hall schedule: #{inspect(reason)}")}
+         put_flash(
+           socket,
+           :error,
+           "Unable to collect Thalia Hall source data: #{inspect(reason)}"
+         )}
     end
   end
 
@@ -154,6 +156,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
             {:noreply,
              socket
              |> assign(:editing_source_id, source.id)
+             |> assign(:show_source_form, true)
              |> assign(:source_form, to_form(Venues.change_venue_source(source)))}
         end
 
@@ -164,6 +167,14 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
 
   def handle_event("cancel-source-edit", _params, socket) do
     {:noreply, reset_source_form(socket)}
+  end
+
+  def handle_event("show-source-form", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing_source_id, nil)
+     |> assign(:show_source_form, true)
+     |> assign(:source_form, to_form(Venues.change_venue_source(%VenueSource{})))}
   end
 
   def handle_event("delete-source", %{"id" => id}, socket) do
@@ -199,7 +210,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
         <div class="mb-6 flex items-center justify-between gap-4">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">{@venue.name}</h1>
-            <p class="mt-2 text-sm text-gray-600">Venue detail and collected schedule data</p>
+            <p class="mt-2 text-sm text-gray-600">Venue detail, source management, and shows</p>
           </div>
 
           <div class="flex items-center gap-2">
@@ -210,7 +221,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
               phx-click="collect-thalia-schedule"
               class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
             >
-              Collect Schedule
+              Collect Source Data
             </button>
 
             <.link
@@ -381,12 +392,25 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
               </ul>
             </div>
 
+            <div class="flex items-center gap-2">
+              <button
+                :if={!@editing_source_id && !@show_source_form}
+                id="show-source-form"
+                type="button"
+                phx-click="show-source-form"
+                class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                New Source
+              </button>
+            </div>
+
             <.form
+              :if={@show_source_form || @editing_source_id}
               id="venue-source-form"
               for={@source_form}
               phx-change="validate-source"
               phx-submit="save-source"
-              class="space-y-3"
+              class="mt-3 space-y-3"
             >
               <.input field={@source_form[:source_key]} label="Source key" type="text" />
               <.input field={@source_form[:enabled]} label="Enabled" type="checkbox" />
@@ -403,6 +427,16 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
                 </button>
 
                 <button
+                  :if={!@editing_source_id && @show_source_form}
+                  id="cancel-new-source"
+                  type="button"
+                  phx-click="cancel-source-edit"
+                  class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
                   :if={@editing_source_id}
                   id="cancel-venue-source-edit"
                   type="button"
@@ -413,19 +447,6 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
                 </button>
               </div>
             </.form>
-          </div>
-        </div>
-
-        <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div class="border-b border-slate-200 px-4 py-3">
-            <h2 class="text-lg font-semibold text-slate-900">Latest Schedule Payload</h2>
-          </div>
-
-          <div class="p-4">
-            <pre
-              id="venue-schedule-payload"
-              class="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-4 text-xs text-slate-100"
-            ><%= @schedule_payload || "No schedule payload collected yet." %></pre>
           </div>
         </div>
       </ShowcagoServicesWeb.AdminComponents.admin_layout>
@@ -456,13 +477,13 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
 
     socket
     |> assign(:venue_sources, Venues.list_venue_sources(venue))
-    |> assign(:schedule_payload, Venues.latest_source_payload_for_venue(venue))
     |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(venue))
   end
 
   defp reset_source_form(socket) do
     socket
     |> assign(:editing_source_id, nil)
+    |> assign(:show_source_form, false)
     |> assign(:source_form, to_form(Venues.change_venue_source(%VenueSource{})))
   end
 
