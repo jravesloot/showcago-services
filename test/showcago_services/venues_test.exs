@@ -139,7 +139,7 @@ defmodule ShowcagoServices.VenuesTest do
       assert updated.id == venue.id
 
       source_row =
-        Repo.get_by!(VenueSource, venue_id: venue.id, source_type: "salt_shed_ticketmaster")
+        Repo.get_by!(VenueSource, venue_id: venue.id, source_key: "salt_shed_ticketmaster")
 
       assert {:ok, payload} = Jason.decode(source_row.raw_payload)
       assert payload["source"] == "salt_shed_ticketmaster_api"
@@ -182,7 +182,7 @@ defmodule ShowcagoServices.VenuesTest do
       source_row =
         Repo.get_by!(VenueSource,
           venue_id: venue.id,
-          source_type: "thalia_hall_ticketmaster"
+          source_key: "thalia_hall_ticketmaster"
         )
 
       assert {:ok, payload} = Jason.decode(source_row.raw_payload)
@@ -548,11 +548,11 @@ defmodule ShowcagoServices.VenuesTest do
     venue
   end
 
-  defp insert_source_payload!(venue, source_type, payload, payload_format) do
+  defp insert_source_payload!(venue, source_key, payload, payload_format) do
     %VenueSource{}
     |> VenueSource.changeset(%{
       venue_id: venue.id,
-      source_type: source_type,
+      source_key: source_key,
       raw_payload: payload,
       payload_format: payload_format,
       fetched_at: DateTime.utc_now(:second),
@@ -561,11 +561,11 @@ defmodule ShowcagoServices.VenuesTest do
     |> Repo.insert!()
   end
 
-  defp insert_source_config!(venue, source_type) do
+  defp insert_source_config!(venue, source_key) do
     %VenueSource{}
     |> VenueSource.changeset(%{
       venue_id: venue.id,
-      source_type: source_type,
+      source_key: source_key,
       enabled: true
     })
     |> Repo.insert!()

@@ -18,7 +18,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     %VenueSource{}
     |> VenueSource.changeset(%{
       venue_id: venue.id,
-      source_type: "salt_shed_ticketmaster",
+      source_key: "salt_shed_ticketmaster",
       raw_payload: "<div>Upcoming show</div>",
       payload_format: "html",
       fetched_at: DateTime.utc_now(:second),
@@ -46,7 +46,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     %VenueSource{}
     |> VenueSource.changeset(%{
       venue_id: venue.id,
-      source_type: "salt_shed_ticketmaster",
+      source_key: "salt_shed_ticketmaster",
       raw_payload: "<div>Older payload</div>",
       payload_format: "html",
       fetched_at: collected_at,
@@ -57,7 +57,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     %VenueSource{}
     |> VenueSource.changeset(%{
       venue_id: venue.id,
-      source_type: "thalia_hall_ticketmaster",
+      source_key: "thalia_hall_ticketmaster",
       raw_payload: "<div>Newer payload with nil timestamp</div>",
       payload_format: "html",
       fetched_at: nil,

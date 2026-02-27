@@ -3,7 +3,7 @@ defmodule ShowcagoServices.Schema.VenueSource do
   import Ecto.Changeset
 
   schema "venue_sources" do
-    field :source_type, :string
+    field :source_key, :string
     field :raw_payload, :string
     field :payload_format, :string
     field :fetched_at, :utc_datetime
@@ -19,14 +19,14 @@ defmodule ShowcagoServices.Schema.VenueSource do
     venue_source
     |> cast(attrs, [
       :venue_id,
-      :source_type,
+      :source_key,
       :raw_payload,
       :payload_format,
       :fetched_at,
       :enabled,
       :last_error
     ])
-    |> validate_required([:venue_id, :source_type])
-    |> unique_constraint([:venue_id, :source_type])
+    |> validate_required([:venue_id, :source_key])
+    |> unique_constraint([:venue_id, :source_key])
   end
 end

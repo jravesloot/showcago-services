@@ -204,12 +204,12 @@ defmodule ShowcagoServices.Venues do
   end
 
   defp source_module_for_venue(%Venue{} = venue) do
-    case latest_source_type_for_venue(venue) do
+    case latest_source_key_for_venue(venue) do
       nil ->
         nil
 
-      source_type ->
-        case source_module_for_source_key(source_type) do
+      source_key ->
+        case source_module_for_source_key(source_key) do
           {:ok, source_module} -> source_module
           {:error, :unknown_source} -> nil
         end
@@ -238,7 +238,7 @@ defmodule ShowcagoServices.Venues do
 
   defp get_venue_for_source(source_module) do
     from(vs in VenueSource,
-      where: vs.source_type == ^source_module.source_key() and vs.enabled == true,
+      where: vs.source_key == ^source_module.source_key() and vs.enabled == true,
       order_by: [desc: vs.fetched_at, desc: vs.id],
       join: v in Venue,
       on: v.id == vs.venue_id,
@@ -248,11 +248,11 @@ defmodule ShowcagoServices.Venues do
     |> Repo.one()
   end
 
-  defp latest_source_type_for_venue(%Venue{} = venue) do
+  defp latest_source_key_for_venue(%Venue{} = venue) do
     from(vs in VenueSource,
       where: vs.venue_id == ^venue.id and vs.enabled == true,
       order_by: [desc: vs.fetched_at, desc: vs.id],
-      select: vs.source_type,
+      select: vs.source_key,
       limit: 1
     )
     |> Repo.one()
@@ -304,7 +304,7 @@ defmodule ShowcagoServices.Venues do
     source_fetched_at =
       from(vs in VenueSource,
         where:
-          vs.venue_id == ^venue.id and vs.source_type == ^source_module.source_key() and
+          vs.venue_id == ^venue.id and vs.source_key == ^source_module.source_key() and
             not is_nil(vs.fetched_at),
         order_by: [desc: vs.fetched_at, desc: vs.id],
         select: vs.fetched_at,
@@ -319,7 +319,7 @@ defmodule ShowcagoServices.Venues do
        when is_binary(payload) do
     attrs = %{
       venue_id: venue.id,
-      source_type: source_module.source_key(),
+      source_key: source_module.source_key(),
       raw_payload: payload,
       payload_format: infer_payload_format(payload),
       fetched_at: DateTime.utc_now(:second),
@@ -340,19 +340,19 @@ defmodule ShowcagoServices.Venues do
           updated_at: attrs.updated_at
         ]
       ],
-      conflict_target: [:venue_id, :source_type]
+      conflict_target: [:venue_id, :source_key]
     )
 
     {:ok,
      Repo.get_by!(VenueSource,
        venue_id: venue.id,
-       source_type: source_module.source_key()
+       source_key: source_module.source_key()
      )}
   end
 
   defp get_source_payload(%Venue{} = venue, source_module) do
     from(vs in VenueSource,
-      where: vs.venue_id == ^venue.id and vs.source_type == ^source_module.source_key(),
+      where: vs.venue_id == ^venue.id and vs.source_key == ^source_module.source_key(),
       order_by: [desc: vs.fetched_at, desc: vs.id],
       select: vs.raw_payload,
       limit: 1
