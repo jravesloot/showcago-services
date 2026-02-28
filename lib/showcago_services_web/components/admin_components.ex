@@ -54,6 +54,18 @@ defmodule ShowcagoServicesWeb.AdminComponents do
               <.icon name="hero-calendar-days" class="size-4" />
               <span>Shows</span>
             </.link>
+
+            <.link
+              navigate={~p"/admin/users"}
+              class={[
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                @active_page == :users && "bg-blue-50 text-blue-700",
+                @active_page != :users && "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+              ]}
+            >
+              <.icon name="hero-users" class="size-4" />
+              <span>Users</span>
+            </.link>
           </nav>
         </aside>
 

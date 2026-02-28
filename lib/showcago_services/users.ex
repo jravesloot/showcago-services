@@ -60,6 +60,25 @@ defmodule ShowcagoServices.Users do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc """
+  Lists all users ordered by most recently created.
+  """
+  @spec list_users() :: [User.t()]
+  def list_users do
+    from(u in User, order_by: [desc: u.inserted_at])
+    |> Repo.all()
+  end
+
+  @doc """
+  Updates a user's role.
+  """
+  @spec update_user_role(User.t(), map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_role(%User{} = user, attrs) do
+    user
+    |> User.role_changeset(attrs)
+    |> Repo.update()
+  end
+
   ## User registration
 
   @doc """

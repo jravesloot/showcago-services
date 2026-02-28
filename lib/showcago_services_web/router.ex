@@ -38,6 +38,7 @@ defmodule ShowcagoServicesWeb.Router do
       live "/admin/venues/:id", Admin.VenueDetailLive, :show
 
       live "/admin/shows", Admin.ShowLive, :index
+      live "/admin/users", Admin.UserLive, :index
     end
   end
 
