@@ -10,8 +10,8 @@ defmodule ShowcagoServices.TelegramBot do
   @impl Telegram.Bot
   def handle_update(%{"message" => %{"chat" => %{"id" => chat_id}, "text" => text}}, token)
       when is_integer(chat_id) and is_binary(text) do
-
     Logger.info("Received Telegram message: #{text} from chat_id: #{chat_id}")
+
     if upcoming_shows_request?(text) do
       send_upcoming_shows(chat_id, token)
     end

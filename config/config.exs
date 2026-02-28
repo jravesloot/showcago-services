@@ -7,13 +7,27 @@
 # General application configuration
 import Config
 
+config :showcago_services, :scopes,
+  user: [
+    default: true,
+    module: ShowcagoServices.Users.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: ShowcagoServices.UsersFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :showcago_services,
   ecto_repos: [ShowcagoServices.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 config :showcago_services, :telegram_bot_token, nil
 
-config :tesla, adapter: {Tesla.Adapter.Finch, name: ShowcagoServices.TelegramFinch, recv_timeout: 40_000}
+config :tesla,
+  adapter: {Tesla.Adapter.Finch, name: ShowcagoServices.TelegramFinch, recv_timeout: 40_000}
 
 config :showcago_services, ShowcagoServices.Repo, migration_timestamps: [type: :utc_datetime]
 
