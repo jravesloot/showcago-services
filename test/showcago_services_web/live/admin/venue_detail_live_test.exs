@@ -8,6 +8,8 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
   alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Venues
 
+  setup :register_and_log_in_admin_user
+
   test "renders venue sources and raw payload", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{

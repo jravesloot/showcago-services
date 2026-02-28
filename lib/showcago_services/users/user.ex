@@ -2,8 +2,11 @@ defmodule ShowcagoServices.Users.User do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @roles [:user, :admin]
+
   schema "users" do
     field :email, :string
+    field :role, Ecto.Enum, values: @roles, default: :user
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
@@ -76,6 +79,21 @@ defmodule ShowcagoServices.Users.User do
     |> cast(attrs, [:password])
     |> validate_confirmation(:password, message: "does not match password")
     |> validate_password(opts)
+  end
+
+  @doc """
+  A user changeset for changing the role.
+  """
+  def role_changeset(user, attrs) do
+    changeset =
+      user
+      |> cast(attrs, [:role])
+
+    if Map.has_key?(attrs, :role) or Map.has_key?(attrs, "role") do
+      changeset
+    else
+      add_error(changeset, :role, "can't be blank")
+    end
   end
 
   defp validate_password(changeset, opts) do

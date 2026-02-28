@@ -34,11 +34,11 @@ defmodule ShowcagoServices.TelegramBot do
 
   defp send_upcoming_shows(chat_id, token) do
     message =
-      shows_module().list_upcoming_shows()
+      Shows.list_upcoming_shows()
       |> Enum.take(@max_shows)
       |> format_upcoming_shows_response()
 
-    telegram_api_module().request(token, "sendMessage",
+    Telegram.Api.request(token, "sendMessage",
       chat_id: chat_id,
       text: message,
       disable_web_page_preview: true
@@ -74,13 +74,5 @@ defmodule ShowcagoServices.TelegramBot do
       {:ok, shifted_datetime} -> shifted_datetime
       _ -> datetime
     end
-  end
-
-  defp shows_module do
-    Application.get_env(:showcago_services, :telegram_shows_module, Shows)
-  end
-
-  defp telegram_api_module do
-    Application.get_env(:showcago_services, :telegram_api_module, Telegram.Api)
   end
 end

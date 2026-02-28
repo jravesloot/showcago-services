@@ -21,17 +21,24 @@ defmodule ShowcagoServicesWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
 
-    live "/admin/artists", Admin.ArtistLive, :index
-    live "/admin/artists/new", Admin.ArtistLive, :new
-    live "/admin/artists/:id/edit", Admin.ArtistLive, :edit
+  scope "/", ShowcagoServicesWeb do
+    pipe_through [:browser, :require_admin_user]
 
-    live "/admin/venues", Admin.VenueLive, :index
-    live "/admin/venues/new", Admin.VenueLive, :new
-    live "/admin/venues/:id/edit", Admin.VenueLive, :edit
-    live "/admin/venues/:id", Admin.VenueDetailLive, :show
+    live_session :require_admin_user,
+      on_mount: [{ShowcagoServicesWeb.UserAuth, :require_admin}] do
+      live "/admin/artists", Admin.ArtistLive, :index
+      live "/admin/artists/new", Admin.ArtistLive, :new
+      live "/admin/artists/:id/edit", Admin.ArtistLive, :edit
 
-    live "/admin/shows", Admin.ShowLive, :index
+      live "/admin/venues", Admin.VenueLive, :index
+      live "/admin/venues/new", Admin.VenueLive, :new
+      live "/admin/venues/:id/edit", Admin.VenueLive, :edit
+      live "/admin/venues/:id", Admin.VenueDetailLive, :show
+
+      live "/admin/shows", Admin.ShowLive, :index
+    end
   end
 
   # Other scopes may use custom stacks.

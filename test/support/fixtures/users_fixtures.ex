@@ -8,6 +8,7 @@ defmodule ShowcagoServices.UsersFixtures do
 
   alias ShowcagoServices.Users
   alias ShowcagoServices.Users.Scope
+  alias ShowcagoServices.Users.User
 
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
   def valid_user_password, do: "hello world!"
@@ -39,6 +40,17 @@ defmodule ShowcagoServices.UsersFixtures do
       Users.login_user_by_magic_link(token)
 
     user
+  end
+
+  def admin_user_fixture(attrs \\ %{}) do
+    user = user_fixture(attrs)
+
+    ShowcagoServices.Repo.update_all(
+      from(u in User, where: u.id == ^user.id),
+      set: [role: :admin]
+    )
+
+    Users.get_user!(user.id)
   end
 
   def user_scope_fixture do

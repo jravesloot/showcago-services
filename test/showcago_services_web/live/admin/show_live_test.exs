@@ -8,6 +8,8 @@ defmodule ShowcagoServicesWeb.Admin.ShowLiveTest do
   alias ShowcagoServices.Schema.Show
   alias ShowcagoServices.Schema.Venue
 
+  setup :register_and_log_in_admin_user
+
   test "shows upcoming events grouped by date", %{conn: conn} do
     venue =
       %Venue{}

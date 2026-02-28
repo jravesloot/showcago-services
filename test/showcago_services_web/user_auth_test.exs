@@ -366,6 +366,70 @@ defmodule ShowcagoServicesWeb.UserAuthTest do
     end
   end
 
+  describe "require_admin_user/2" do
+    setup %{conn: conn} do
+      %{conn: UserAuth.fetch_current_scope_for_user(conn, [])}
+    end
+
+    test "redirects to login if user is not authenticated", %{conn: conn} do
+      conn = conn |> fetch_flash() |> UserAuth.require_admin_user([])
+      assert conn.halted
+      assert redirected_to(conn) == ~p"/users/log-in"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "You must log in to access this page."
+    end
+
+    test "redirects to home if user is authenticated but not admin", %{conn: conn, user: user} do
+      conn =
+        conn
+        |> assign(:current_scope, Scope.for_user(user))
+        |> fetch_flash()
+        |> UserAuth.require_admin_user([])
+
+      assert conn.halted
+      assert redirected_to(conn) == ~p"/"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "You must be an admin to access this page."
+    end
+
+    test "does not redirect if user is admin", %{conn: conn} do
+      admin_user = admin_user_fixture()
+
+      conn =
+        conn
+        |> assign(:current_scope, Scope.for_user(admin_user))
+        |> UserAuth.require_admin_user([])
+
+      refute conn.halted
+      refute conn.status
+    end
+  end
+
+  describe "on_mount :require_admin" do
+    test "allows admin users", %{conn: conn} do
+      admin_user = admin_user_fixture()
+      user_token = Users.generate_user_session_token(admin_user)
+      session = conn |> put_session(:user_token, user_token) |> get_session()
+
+      assert {:cont, _updated_socket} =
+               UserAuth.on_mount(:require_admin, %{}, session, %LiveView.Socket{})
+    end
+
+    test "halts for authenticated non-admin users", %{conn: conn, user: user} do
+      user_token = Users.generate_user_session_token(user)
+      session = conn |> put_session(:user_token, user_token) |> get_session()
+
+      socket = %LiveView.Socket{
+        endpoint: ShowcagoServicesWeb.Endpoint,
+        assigns: %{__changed__: %{}, flash: %{}}
+      }
+
+      assert {:halt, _updated_socket} = UserAuth.on_mount(:require_admin, %{}, session, socket)
+    end
+  end
+
   describe "disconnect_sessions/1" do
     test "broadcasts disconnect messages for each token" do
       tokens = [%{token: "token1"}, %{token: "token2"}]

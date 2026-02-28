@@ -230,6 +230,31 @@ defmodule ShowcagoServicesWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_admin, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    cond do
+      is_nil(socket.assigns.current_scope) or is_nil(socket.assigns.current_scope.user) ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+
+        {:halt, socket}
+
+      admin_user?(socket.assigns.current_scope.user) ->
+        {:cont, socket}
+
+      true ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must be an admin to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/")
+
+        {:halt, socket}
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
@@ -279,9 +304,35 @@ defmodule ShowcagoServicesWeb.UserAuth do
     end
   end
 
+  @doc """
+  Plug for routes that require the user to be an authenticated admin.
+  """
+  def require_admin_user(conn, _opts) do
+    cond do
+      is_nil(conn.assigns.current_scope) or is_nil(conn.assigns.current_scope.user) ->
+        conn
+        |> put_flash(:error, "You must log in to access this page.")
+        |> maybe_store_return_to()
+        |> redirect(to: ~p"/users/log-in")
+        |> halt()
+
+      admin_user?(conn.assigns.current_scope.user) ->
+        conn
+
+      true ->
+        conn
+        |> put_flash(:error, "You must be an admin to access this page.")
+        |> redirect(to: ~p"/")
+        |> halt()
+    end
+  end
+
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))
   end
 
   defp maybe_store_return_to(conn), do: conn
+
+  defp admin_user?(%Users.User{role: :admin}), do: true
+  defp admin_user?(_), do: false
 end
