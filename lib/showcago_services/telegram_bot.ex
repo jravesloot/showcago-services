@@ -2,18 +2,34 @@ defmodule ShowcagoServices.TelegramBot do
   use Telegram.Bot
 
   alias ShowcagoServices.Shows
+  alias ShowcagoServices.Users
   require Logger
 
   @chicago_time_zone "America/Chicago"
   @max_shows 10
 
   @impl Telegram.Bot
-  def handle_update(%{"message" => %{"chat" => %{"id" => chat_id}, "text" => text}}, token)
-      when is_integer(chat_id) and is_binary(text) do
-    Logger.info("Received Telegram message: #{text} from chat_id: #{chat_id}")
+  def handle_update(
+        %{
+          "message" => %{
+            "chat" => %{"id" => chat_id},
+            "from" => %{"id" => telegram_id},
+            "text" => text
+          }
+        },
+        token
+      )
+      when is_integer(chat_id) and is_integer(telegram_id) and is_binary(text) do
+    if Users.get_user_by_telegram_id(telegram_id) do
+      Logger.info(
+        "Received Telegram message: #{text} from telegram_id: #{telegram_id}, chat_id: #{chat_id}"
+      )
 
-    if upcoming_shows_request?(text) do
-      send_upcoming_shows(chat_id, token)
+      if upcoming_shows_request?(text) do
+        send_upcoming_shows(chat_id, token)
+      end
+    else
+      Logger.warning("Ignoring Telegram message from unknown telegram_id: #{telegram_id}")
     end
 
     :ok

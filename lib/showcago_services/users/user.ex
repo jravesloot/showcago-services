@@ -6,6 +6,7 @@ defmodule ShowcagoServices.Users.User do
 
   schema "users" do
     field :email, :string
+    field :telegram_id, :integer
     field :role, Ecto.Enum, values: @roles, default: :user
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
@@ -94,6 +95,16 @@ defmodule ShowcagoServices.Users.User do
     else
       add_error(changeset, :role, "can't be blank")
     end
+  end
+
+  @doc """
+  A user changeset for changing telegram id.
+  """
+  def telegram_id_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:telegram_id])
+    |> validate_number(:telegram_id, greater_than: 0)
+    |> unique_constraint(:telegram_id)
   end
 
   defp validate_password(changeset, opts) do

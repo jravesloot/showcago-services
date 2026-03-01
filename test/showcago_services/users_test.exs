@@ -17,6 +17,49 @@ defmodule ShowcagoServices.UsersTest do
     end
   end
 
+  describe "get_user_by_telegram_id/1" do
+    test "returns nil when telegram id does not exist" do
+      refute Users.get_user_by_telegram_id(9_999_999)
+    end
+
+    test "returns the user when telegram id exists" do
+      user = user_fixture()
+      {:ok, updated_user} = Users.update_user_telegram_id(user, %{telegram_id: 111_222})
+
+      assert %User{id: id} = Users.get_user_by_telegram_id(111_222)
+      assert id == updated_user.id
+    end
+  end
+
+  describe "update_user_telegram_id/2" do
+    test "updates telegram id" do
+      user = user_fixture()
+
+      assert {:ok, updated_user} = Users.update_user_telegram_id(user, %{telegram_id: 444_555})
+      assert updated_user.telegram_id == 444_555
+    end
+
+    test "allows clearing telegram id" do
+      user = user_fixture()
+      {:ok, user} = Users.update_user_telegram_id(user, %{telegram_id: 444_555})
+
+      assert {:ok, updated_user} = Users.update_user_telegram_id(user, %{"telegram_id" => ""})
+      assert updated_user.telegram_id == nil
+    end
+
+    test "enforces uniqueness" do
+      user = user_fixture()
+      other_user = user_fixture()
+
+      {:ok, _} = Users.update_user_telegram_id(user, %{telegram_id: 444_555})
+
+      assert {:error, changeset} =
+               Users.update_user_telegram_id(other_user, %{telegram_id: 444_555})
+
+      assert "has already been taken" in errors_on(changeset).telegram_id
+    end
+  end
+
   describe "get_user_by_email_and_password/2" do
     test "does not return the user if the email does not exist" do
       refute Users.get_user_by_email_and_password("unknown@example.com", "hello world!")

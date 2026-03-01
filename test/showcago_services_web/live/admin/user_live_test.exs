@@ -3,56 +3,30 @@ defmodule ShowcagoServicesWeb.Admin.UserLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias ShowcagoServices.Repo
   alias ShowcagoServices.Users
-  alias ShowcagoServices.Users.User
 
   setup :register_and_log_in_admin_user
 
   test "renders users list", %{conn: conn} do
     regular_user = Users.get_user!(ShowcagoServices.UsersFixtures.user_fixture().id)
+    {:ok, regular_user} = Users.update_user_telegram_id(regular_user, %{telegram_id: 123_456})
 
     {:ok, view, _html} = live(conn, ~p"/admin/users")
 
     assert has_element?(view, "h1", "Users")
     assert has_element?(view, "#admin-user-#{regular_user.id}")
-    assert has_element?(view, "#set-admin-#{regular_user.id}", "Make Admin")
+    assert has_element?(view, "#admin-user-#{regular_user.id}", "123456")
+    assert has_element?(view, "#edit-user-#{regular_user.id}", "Edit")
   end
 
-  test "can promote user to admin", %{conn: conn} do
+  test "navigates to user detail page", %{conn: conn} do
     regular_user = Users.get_user!(ShowcagoServices.UsersFixtures.user_fixture().id)
 
     {:ok, view, _html} = live(conn, ~p"/admin/users")
 
-    view
-    |> element("#set-admin-#{regular_user.id}")
-    |> render_click()
-
-    assert render(view) =~ "User role updated"
-    assert Repo.get!(User, regular_user.id).role == :admin
-  end
-
-  test "cannot demote currently logged in admin", %{conn: conn, user: admin_user} do
-    {:ok, view, _html} = live(conn, ~p"/admin/users")
-
-    refute has_element?(view, "#set-user-#{admin_user.id}")
-    refute render(view) =~ "Make User"
-
-    assert Repo.get!(User, admin_user.id).role == :admin
-  end
-
-  test "can demote a different admin to user", %{conn: conn, user: logged_in_admin} do
-    other_admin = ShowcagoServices.UsersFixtures.admin_user_fixture()
-
-    assert other_admin.id != logged_in_admin.id
-
-    {:ok, view, _html} = live(conn, ~p"/admin/users")
-
-    view
-    |> element("#set-user-#{other_admin.id}")
-    |> render_click()
-
-    assert render(view) =~ "User role updated"
-    assert Repo.get!(User, other_admin.id).role == :user
+    assert has_element?(
+             view,
+             "#edit-user-#{regular_user.id}[href='/admin/users/#{regular_user.id}']"
+           )
   end
 end

@@ -27,6 +27,13 @@ defmodule ShowcagoServices.Users do
   end
 
   @doc """
+  Gets a user by telegram id.
+  """
+  def get_user_by_telegram_id(telegram_id) when is_integer(telegram_id) do
+    Repo.get_by(User, telegram_id: telegram_id)
+  end
+
+  @doc """
   Gets a user by email and password.
 
   ## Examples
@@ -76,6 +83,16 @@ defmodule ShowcagoServices.Users do
   def update_user_role(%User{} = user, attrs) do
     user
     |> User.role_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Updates a user's telegram id.
+  """
+  @spec update_user_telegram_id(User.t(), map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_telegram_id(%User{} = user, attrs) do
+    user
+    |> User.telegram_id_changeset(attrs)
     |> Repo.update()
   end
 
