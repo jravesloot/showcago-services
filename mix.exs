@@ -40,6 +40,7 @@ defmodule ShowcagoServices.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:jido, "~> 2.0"},
       {:bcrypt_elixir, "~> 3.0"},
       {:telegram, github: "visciang/telegram", tag: "2.1.1"},
       {:tidewave, "~> 0.5", only: :dev},
@@ -65,7 +66,7 @@ defmodule ShowcagoServices.MixProject do
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:gettext, "~> 1.0"},
+      {:gettext, "0.26.2"},
       {:jason, "~> 1.2"},
       {:tzdata, "~> 1.1"},
       {:dns_cluster, "~> 0.2.0"},
