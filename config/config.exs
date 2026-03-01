@@ -27,7 +27,7 @@ config :showcago_services,
 config :showcago_services, :telegram_bot_token, nil
 
 config :tesla,
-  adapter: {Tesla.Adapter.Finch, name: ShowcagoServices.TelegramFinch, recv_timeout: 40_000}
+  adapter: {Tesla.Adapter.Finch, name: ShowcagoServices.TelegramFinch, receive_timeout: 40_000}
 
 config :showcago_services, ShowcagoServices.Repo, migration_timestamps: [type: :utc_datetime]
 
