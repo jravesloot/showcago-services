@@ -25,9 +25,11 @@ defmodule ShowcagoServices.TelegramBot do
         "Received Telegram message: #{text} from telegram_id: #{telegram_id}, chat_id: #{chat_id}"
       )
 
-      if upcoming_shows_request?(text) do
-        send_upcoming_shows(chat_id, token)
-      end
+      forward_message_to_agent(telegram_id, chat_id, text, token)
+
+      # if upcoming_shows_request?(text) do
+      #   send_upcoming_shows(chat_id, token)
+      # end
     else
       Logger.warning("Ignoring Telegram message from unknown telegram_id: #{telegram_id}")
     end
@@ -36,6 +38,21 @@ defmodule ShowcagoServices.TelegramBot do
   end
 
   def handle_update(_update, _token), do: :ok
+
+  defp forward_message_to_agent(telegram_id, chat_id, text, token) do
+    agent_pid = case Jido.AgentServer.whereis(Jido.Registry, "shows_agent_#{telegram_id}") do
+      nil ->
+        Logger.info("Starting new ShowsAgent for telegram_id: #{telegram_id}") # probably should use chat_id
+        {:ok, pid} = Jido.AgentServer.start_link(agent: ShowcagoServices.Jido.ShowsAgent, id: "shows_agent_#{telegram_id}")
+        pid
+
+      pid ->
+        Logger.info("Found existing ShowsAgent for telegram_id: #{telegram_id}")
+        pid
+    end
+
+    ShowcagoServices.Jido.ShowsAgent.handle_telegram_message(agent_pid, chat_id, text, token)
+  end
 
   defp upcoming_shows_request?(text) do
     normalized_text =
