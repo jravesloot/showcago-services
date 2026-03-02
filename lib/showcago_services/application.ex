@@ -14,7 +14,8 @@ defmodule ShowcagoServices.Application do
         {DNSCluster,
          query: Application.get_env(:showcago_services, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: ShowcagoServices.PubSub},
-        ShowcagoServicesWeb.Endpoint
+        ShowcagoServicesWeb.Endpoint,
+        {Jido, name: Jido}
       ] ++ telegram_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

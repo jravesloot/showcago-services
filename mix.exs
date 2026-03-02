@@ -41,6 +41,8 @@ defmodule ShowcagoServices.MixProject do
   defp deps do
     [
       {:jido, "~> 2.0"},
+      {:jido_ai, github: "agentjido/jido_ai", branch: "main"},
+      {:req_llm, "~> 1.6"},
       {:bcrypt_elixir, "~> 3.0"},
       {:telegram, github: "visciang/telegram", tag: "2.1.1"},
       {:tidewave, "~> 0.5", only: :dev},

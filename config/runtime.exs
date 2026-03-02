@@ -70,6 +70,9 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  config :req_llm,
+    anthropic_api_key: System.get_env("ANTHROPIC_API_KEY")
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key
