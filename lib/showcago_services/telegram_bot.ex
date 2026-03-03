@@ -13,15 +13,15 @@ defmodule ShowcagoServices.TelegramBot do
             "text" => text
           }
         },
-        token
+        _token
       )
       when is_integer(chat_id) and is_integer(telegram_id) and is_binary(text) do
     if Users.get_user_by_telegram_id(telegram_id) do
-      Logger.info(
+      Logger.warning(
         "Received Telegram message: #{text} from telegram_id: #{telegram_id}, chat_id: #{chat_id}"
       )
 
-      forward_message_to_agent(telegram_id, chat_id, text, token)
+      forward_message_to_agent(telegram_id, chat_id, text)
     else
       Logger.warning("Ignoring Telegram message from unknown telegram_id: #{telegram_id}")
     end
@@ -31,7 +31,7 @@ defmodule ShowcagoServices.TelegramBot do
 
   def handle_update(_update, _token), do: :ok
 
-  defp forward_message_to_agent(telegram_id, chat_id, text, token) do
+  defp forward_message_to_agent(telegram_id, chat_id, text) do
     agent_pid =
       case Jido.AgentServer.whereis(Jido.Registry, "shows_agent_#{telegram_id}") do
         nil ->
@@ -51,6 +51,12 @@ defmodule ShowcagoServices.TelegramBot do
           pid
       end
 
-    ShowcagoServices.Jido.ShowsAgent.handle_telegram_message(agent_pid, chat_id, text, token)
+    {:ok, response} =
+      ShowcagoServices.Jido.ShowsAgent.ask_sync(agent_pid, text, timeout: 60_000)
+
+    ShowcagoServices.Jido.Actions.SendTelegramMessageAction.run(
+      %{chat_id: chat_id, text: response},
+      %{}
+    )
   end
 end

@@ -1,4 +1,10 @@
 defmodule ShowcagoServices.Jido.ShowsAgent do
+  alias ShowcagoServices.Jido.Actions.{
+    IgnoreShowAction,
+    ListShowsAction,
+    SendTelegramMessageAction
+  }
+
   use Jido.AI.Agent,
     name: "shows_agent",
     description:
@@ -6,40 +12,31 @@ defmodule ShowcagoServices.Jido.ShowsAgent do
     model: :fast,
     max_iterations: 5,
     tools: [
-      ShowcagoServices.Jido.Actions.ListShowsAction,
-      ShowcagoServices.Jido.Actions.IgnoreShowAction
+      IgnoreShowAction,
+      ListShowsAction,
+      SendTelegramMessageAction
     ],
     system_prompt: """
     You are a helpful assistant that provides information about upcoming shows
     in Chicago. You have access to a variety of tools that can:
-    - list upcoming shows with details like date, venue, and artists
-    - mark shows as ignored so they are excluded from future listings
+
+      - list upcoming shows with details like date, venue, and artists
+      - mark shows as ignored so they are excluded from future listings
+      - send a message to a Telegram chat
 
     When a user asks about upcoming shows, use the list tool to get the latest
     information and share it clearly. When a user wants to ignore a show, use
     the ignore tool with the show's ID.
 
     All messages should have minimal formatting and be easy to read.
+    Styling such as bold, underline, italics will not be used. You will
+    respond by sending a message using the SendTelegramMessageAction.
     Focus on providing accurate and concise information about the shows.
     """
 
   # def init(_opts) do
   #   {:ok, %{history: []}}
   # end
-
-  # TODO move to skill
-  def handle_telegram_message(pid, chat_id, user_message, chat_token, opts \\ []) do
-    {:ok, response} =
-      __MODULE__.ask_sync(pid, user_message, Keyword.put_new(opts, :timeout, 60_000))
-
-    Telegram.Api.request(chat_token, "sendMessage",
-      chat_id: chat_id,
-      text: response,
-      disable_web_page_preview: true
-    )
-
-    :ok
-  end
 
   # @impl true
   # def on_before_cmd(agent, {:react_start, params}) when is_map(params) do

@@ -12,7 +12,7 @@ defmodule ShowcagoServices.Jido.Actions.IgnoreShowAction do
   def run(%{show_id: show_id}, _context) do
     show = ShowcagoServices.Shows.get_show!(show_id)
 
-    Logger.warning("Ignoring show #{show}")
+    Logger.warning("Ignoring show #{show.id}: #{show.notes} (#{show.date})")
 
     case ShowcagoServices.Shows.set_show_ignored(show, true) do
       {:ok, _show} -> {:ok, %{message: "Show #{show_id} has been marked as ignored."}}
