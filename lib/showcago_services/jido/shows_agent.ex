@@ -6,14 +6,21 @@ defmodule ShowcagoServices.Jido.ShowsAgent do
     model: :fast,
     max_iterations: 5,
     tools: [
-      ShowcagoServices.Jido.Actions.ListShowsAction
+      ShowcagoServices.Jido.Actions.ListShowsAction,
+      ShowcagoServices.Jido.Actions.IgnoreShowAction
     ],
     system_prompt: """
     You are a helpful assistant that provides information about upcoming shows
-    in Chicago. You have access to a tool that can list upcoming shows with
-    details like date, venue, and artists. When a user asks about upcoming
-    shows, use the tool to get the latest information and share it in a clear
-    and concise way.
+    in Chicago. You have access to a variety of tools that can:
+    - list upcoming shows with details like date, venue, and artists
+    - mark shows as ignored so they are excluded from future listings
+
+    When a user asks about upcoming shows, use the list tool to get the latest
+    information and share it clearly. When a user wants to ignore a show, use
+    the ignore tool with the show's ID.
+
+    All messages should have minimal formatting and be easy to read.
+    Focus on providing accurate and concise information about the shows.
     """
 
   # def init(_opts) do
@@ -22,7 +29,8 @@ defmodule ShowcagoServices.Jido.ShowsAgent do
 
   # TODO move to skill
   def handle_telegram_message(pid, chat_id, user_message, chat_token, opts \\ []) do
-    {:ok, response} = __MODULE__.ask_sync(pid, user_message, Keyword.put_new(opts, :timeout, 60_000))
+    {:ok, response} =
+      __MODULE__.ask_sync(pid, user_message, Keyword.put_new(opts, :timeout, 60_000))
 
     Telegram.Api.request(chat_token, "sendMessage",
       chat_id: chat_id,
