@@ -25,6 +25,15 @@ config :showcago_services,
   generators: [timestamp_type: :utc_datetime]
 
 config :showcago_services, :telegram_bot_token, nil
+config :showcago_services, :github_app_id, nil
+config :showcago_services, :github_app_private_key, nil
+config :showcago_services, :github_app_installation_id, nil
+
+config :showcago_services, :github_repo, %{
+  owner: "jravesloot",
+  repo: "showcago-services",
+  base_branch: "main"
+}
 
 config :tesla,
   adapter: {Tesla.Adapter.Finch, name: ShowcagoServices.TelegramFinch, receive_timeout: 40_000}

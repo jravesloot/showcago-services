@@ -24,6 +24,15 @@ config :showcago_services, ShowcagoServicesWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 config :showcago_services, :telegram_bot_token, System.get_env("TELEGRAM_BOT_TOKEN")
+config :showcago_services, :github_app_id, System.get_env("GITHUB_APP_ID")
+
+config :showcago_services,
+       :github_app_installation_id,
+       System.get_env("GITHUB_APP_INSTALLATION_ID")
+
+if github_pem_path = System.get_env("GITHUB_APP_PRIVATE_KEY_PATH") do
+  config :showcago_services, :github_app_private_key, File.read!(github_pem_path)
+end
 
 if config_env() == :prod do
   database_url =
