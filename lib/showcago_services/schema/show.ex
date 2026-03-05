@@ -2,6 +2,8 @@ defmodule ShowcagoServices.Schema.Show do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   @statuses [:upcoming, :postponed, :cancelled, :past]
 
   def statuses, do: @statuses

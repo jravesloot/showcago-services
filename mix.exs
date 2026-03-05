@@ -10,6 +10,7 @@ defmodule ShowcagoServices.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
+      dialyzer: [plt_add_apps: [:mix, :ex_unit]],
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
@@ -72,7 +73,9 @@ defmodule ShowcagoServices.MixProject do
       {:jason, "~> 1.2"},
       {:tzdata, "~> 1.1"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -95,7 +98,14 @@ defmodule ShowcagoServices.MixProject do
         "esbuild showcago_services --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "credo --strict",
+        "dialyzer",
+        "test"
+      ]
     ]
   end
 end

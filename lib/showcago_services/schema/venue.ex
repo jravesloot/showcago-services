@@ -2,6 +2,8 @@ defmodule ShowcagoServices.Schema.Venue do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   schema "venues" do
     field :name, :string
     field :address, :string

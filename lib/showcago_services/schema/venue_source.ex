@@ -2,6 +2,8 @@ defmodule ShowcagoServices.Schema.VenueSource do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   schema "venue_sources" do
     field :source_key, :string
     field :raw_payload, :string
