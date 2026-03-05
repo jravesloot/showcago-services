@@ -34,34 +34,30 @@ defmodule ShowcagoServices.Artists do
       candidate_limit = max(limit, Keyword.get(opts, :candidate_limit, @default_candidate_limit))
 
       candidates =
-        from(a in Artist,
-          where:
-            fragment(
-              "lower(immutable_unaccent(?)) <% lower(immutable_unaccent(?))",
-              a.name,
-              ^normalized_text
-            ),
-          order_by: [
-            desc:
-              fragment(
-                "word_similarity(lower(immutable_unaccent(?)), lower(immutable_unaccent(?)))",
-                a.name,
-                ^normalized_text
-              ),
-            asc: a.name
-          ],
-          limit: ^candidate_limit,
-          select: %{
-            artist: a,
-            score:
-              fragment(
-                "word_similarity(lower(immutable_unaccent(?)), lower(immutable_unaccent(?)))",
-                a.name,
-                ^normalized_text
-              )
-          }
+        Repo.all(
+          from(a in Artist,
+            where: fragment("lower(immutable_unaccent(?)) <% lower(immutable_unaccent(?))", a.name, ^normalized_text),
+            order_by: [
+              desc:
+                fragment(
+                  "word_similarity(lower(immutable_unaccent(?)), lower(immutable_unaccent(?)))",
+                  a.name,
+                  ^normalized_text
+                ),
+              asc: a.name
+            ],
+            limit: ^candidate_limit,
+            select: %{
+              artist: a,
+              score:
+                fragment(
+                  "word_similarity(lower(immutable_unaccent(?)), lower(immutable_unaccent(?)))",
+                  a.name,
+                  ^normalized_text
+                )
+            }
+          )
         )
-        |> Repo.all()
 
       normalized_haystack = normalize_for_boundary_match(normalized_text)
 

@@ -1,17 +1,20 @@
 defmodule ShowcagoServices.Jido.Actions.ListShowsAction do
-  require Logger
-  @max_shows 20
-  @chicago_time_zone "America/Chicago"
-
+  @moduledoc false
   use Jido.Action,
     name: "list_shows",
     description: "Lists upcoming shows in Chicago with details like date, venue, and artists."
+
+  require Logger
+
+  @max_shows 20
+  @chicago_time_zone "America/Chicago"
 
   @impl true
   def run(_params, _context) do
     # sending the raw data seems to stringify it somewhere, truncating the shows list
     shows =
-      ShowcagoServices.Shows.list_upcoming_shows(show_ignored: false)
+      [show_ignored: false]
+      |> ShowcagoServices.Shows.list_upcoming_shows()
       |> Enum.take(@max_shows)
       |> format_shows_response()
 
@@ -28,16 +31,18 @@ defmodule ShowcagoServices.Jido.Actions.ListShowsAction do
       Enum.map(shows, fn show ->
         title = show.notes || "Untitled event"
         venue_name = (show.venue && show.venue.name) || "Unknown venue"
-        artists = show.artists |> Enum.map(& &1.name) |> Enum.join(", ")
+        artists = Enum.map_join(show.artists, ", ", & &1.name)
 
-        [
-          "date:#{format_show_datetime(show.date)}",
-          "title:#{title}",
-          "artists:#{artists}",
-          "show_id:#{show.id}",
-          "venue:#{venue_name}"
-        ]
-        |> Enum.join("\t")
+        Enum.join(
+          [
+            "date:#{format_show_datetime(show.date)}",
+            "title:#{title}",
+            "artists:#{artists}",
+            "show_id:#{show.id}",
+            "venue:#{venue_name}"
+          ],
+          "\t"
+        )
       end)
 
     # Enum.join(["Upcoming shows:", "" | lines], "\n")

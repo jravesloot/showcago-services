@@ -1,9 +1,10 @@
 defmodule ShowcagoServicesWeb.UserLive.Settings do
+  @moduledoc false
   use ShowcagoServicesWeb, :live_view
 
-  on_mount {ShowcagoServicesWeb.UserAuth, :require_sudo_mode}
-
   alias ShowcagoServices.Users
+
+  on_mount {ShowcagoServicesWeb.UserAuth, :require_sudo_mode}
 
   @impl true
   def render(assigns) do
@@ -122,7 +123,7 @@ defmodule ShowcagoServicesWeb.UserLive.Settings do
         )
 
         info = "A link to confirm your email change has been sent to the new address."
-        {:noreply, socket |> put_flash(:info, info)}
+        {:noreply, put_flash(socket, :info, info)}
 
       changeset ->
         {:noreply, assign(socket, :email_form, to_form(changeset, action: :insert))}

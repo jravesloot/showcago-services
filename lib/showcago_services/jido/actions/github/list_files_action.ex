@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Jido.Actions.GitHub.ListFilesAction do
+  @moduledoc false
   use Jido.Action,
     name: "list_github_files",
     description:

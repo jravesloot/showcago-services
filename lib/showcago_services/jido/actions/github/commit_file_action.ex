@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Jido.Actions.GitHub.CommitFileAction do
+  @moduledoc false
   use Jido.Action,
     name: "commit_github_file",
     description:
@@ -23,13 +24,7 @@ defmodule ShowcagoServices.Jido.Actions.GitHub.CommitFileAction do
         _ -> nil
       end
 
-    body =
-      %{
-        message: message,
-        content: Base.encode64(content),
-        branch: branch
-      }
-      |> maybe_put_sha(existing_sha)
+    body = maybe_put_sha(%{message: message, content: Base.encode64(content), branch: branch}, existing_sha)
 
     case GitHub.put("/repos/#{owner}/#{repo}/contents/#{path}", body) do
       {:ok, %{"commit" => %{"sha" => commit_sha}}} ->

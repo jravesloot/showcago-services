@@ -1,8 +1,9 @@
 defmodule ShowcagoServicesWeb.UserAuth do
+  @moduledoc false
   use ShowcagoServicesWeb, :verified_routes
 
-  import Plug.Conn
   import Phoenix.Controller
+  import Plug.Conn
 
   alias ShowcagoServices.Users
   alias ShowcagoServices.Users.Scope
@@ -83,8 +84,6 @@ defmodule ShowcagoServicesWeb.UserAuth do
 
       if token = conn.cookies[@remember_me_cookie] do
         {token, conn |> put_token_in_session(token) |> put_session(:user_remember_me, true)}
-      else
-        nil
       end
     end
   end
@@ -151,8 +150,7 @@ defmodule ShowcagoServicesWeb.UserAuth do
   defp maybe_write_remember_me_cookie(conn, token, %{"remember_me" => "true"}, _),
     do: write_remember_me_cookie(conn, token)
 
-  defp maybe_write_remember_me_cookie(conn, token, _params, true),
-    do: write_remember_me_cookie(conn, token)
+  defp maybe_write_remember_me_cookie(conn, token, _params, true), do: write_remember_me_cookie(conn, token)
 
   defp maybe_write_remember_me_cookie(conn, _token, _params, _), do: conn
 

@@ -1,4 +1,5 @@
 defmodule ShowcagoServicesWeb.Admin.ArtistLive do
+  @moduledoc false
   use ShowcagoServicesWeb, :live_view
 
   alias ShowcagoServices.Artists

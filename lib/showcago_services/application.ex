@@ -11,8 +11,7 @@ defmodule ShowcagoServices.Application do
       [
         ShowcagoServicesWeb.Telemetry,
         ShowcagoServices.Repo,
-        {DNSCluster,
-         query: Application.get_env(:showcago_services, :dns_cluster_query) || :ignore},
+        {DNSCluster, query: Application.get_env(:showcago_services, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: ShowcagoServices.PubSub},
         ShowcagoServicesWeb.Endpoint,
         {Jido, name: Jido}

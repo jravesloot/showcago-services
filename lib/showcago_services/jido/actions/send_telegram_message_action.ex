@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Jido.Actions.SendTelegramMessageAction do
+  @moduledoc false
   use Jido.Action,
     name: "send_telegram_message",
     description: "Sends a message to a Telegram chat.",

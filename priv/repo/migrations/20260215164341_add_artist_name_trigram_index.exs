@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Repo.Migrations.AddArtistNameTrigramIndex do
+  @moduledoc false
   use Ecto.Migration
 
   def up do

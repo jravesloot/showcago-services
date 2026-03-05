@@ -2,6 +2,7 @@ defmodule ShowcagoServicesWeb.UserSessionControllerTest do
   use ShowcagoServicesWeb.ConnCase, async: true
 
   import ShowcagoServices.UsersFixtures
+
   alias ShowcagoServices.Users
 
   setup do

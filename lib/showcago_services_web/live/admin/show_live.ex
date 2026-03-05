@@ -1,4 +1,5 @@
 defmodule ShowcagoServicesWeb.Admin.ShowLive do
+  @moduledoc false
   use ShowcagoServicesWeb, :live_view
 
   alias ShowcagoServices.Shows
@@ -137,8 +138,7 @@ defmodule ShowcagoServicesWeb.Admin.ShowLive do
 
   defp artist_names(show) do
     show.artists
-    |> Enum.map(& &1.name)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", & &1.name)
     |> case do
       "" -> "Unmatched"
       names -> names

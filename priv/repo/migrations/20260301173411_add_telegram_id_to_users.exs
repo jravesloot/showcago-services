@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Repo.Migrations.AddTelegramIdToUsers do
+  @moduledoc false
   use Ecto.Migration
 
   def change do

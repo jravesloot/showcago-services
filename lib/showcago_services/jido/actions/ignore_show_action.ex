@@ -1,12 +1,13 @@
 defmodule ShowcagoServices.Jido.Actions.IgnoreShowAction do
-  require Logger
-
+  @moduledoc false
   use Jido.Action,
     name: "ignore_show",
     description: "Marks a show as ignored so it will be excluded from upcoming show listings.",
     schema: [
       show_id: [type: :integer, required: true, doc: "The ID of the show to ignore"]
     ]
+
+  require Logger
 
   @impl true
   def run(%{show_id: show_id}, _context) do

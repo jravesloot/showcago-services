@@ -1,5 +1,7 @@
 defmodule ShowcagoServices.Schema.VenueSource do
+  @moduledoc false
   use Ecto.Schema
+
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}

@@ -1,9 +1,10 @@
 defmodule ShowcagoServicesWeb.UserLive.SettingsTest do
   use ShowcagoServicesWeb.ConnCase, async: true
 
-  alias ShowcagoServices.Users
   import Phoenix.LiveViewTest
   import ShowcagoServices.UsersFixtures
+
+  alias ShowcagoServices.Users
 
   describe "Settings page" do
     test "renders settings page", %{conn: conn} do

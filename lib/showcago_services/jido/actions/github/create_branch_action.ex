@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Jido.Actions.GitHub.CreateBranchAction do
+  @moduledoc false
   use Jido.Action,
     name: "create_github_branch",
     description: "Creates a new branch in the GitHub repository from the base branch.",

@@ -1,13 +1,5 @@
 defmodule ShowcagoServices.Jido.CodeAgent do
-  alias ShowcagoServices.Jido.Actions.GitHub.{
-    ReadFileAction,
-    ListFilesAction,
-    CreateBranchAction,
-    CommitFileAction,
-    OpenPullRequestAction,
-    CreateIssueAction
-  }
-
+  @moduledoc false
   use Jido.AI.Agent,
     name: "code_agent",
     description:
@@ -16,12 +8,12 @@ defmodule ShowcagoServices.Jido.CodeAgent do
     model: :capable,
     max_iterations: 10,
     tools: [
-      ReadFileAction,
-      ListFilesAction,
-      CreateBranchAction,
-      CommitFileAction,
-      OpenPullRequestAction,
-      CreateIssueAction
+      ShowcagoServices.Jido.Actions.GitHub.ReadFileAction,
+      ShowcagoServices.Jido.Actions.GitHub.ListFilesAction,
+      ShowcagoServices.Jido.Actions.GitHub.CreateBranchAction,
+      ShowcagoServices.Jido.Actions.GitHub.CommitFileAction,
+      ShowcagoServices.Jido.Actions.GitHub.OpenPullRequestAction,
+      ShowcagoServices.Jido.Actions.GitHub.CreateIssueAction
     ],
     system_prompt: """
     You are a developer assistant that makes code changes to the showcago-services

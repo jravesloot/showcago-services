@@ -35,7 +35,8 @@ defmodule ShowcagoServices.Shows do
 
   @spec list_upcoming_shows_grouped_by_date(keyword()) :: [{Date.t(), [Show.t()]}]
   def list_upcoming_shows_grouped_by_date(opts \\ []) do
-    list_upcoming_shows(opts)
+    opts
+    |> list_upcoming_shows()
     |> Enum.group_by(&chicago_local_date(&1.date))
     |> Enum.sort_by(fn {date, _shows} -> date end, Date)
   end

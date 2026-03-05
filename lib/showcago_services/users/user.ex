@@ -1,5 +1,7 @@
 defmodule ShowcagoServices.Users.User do
+  @moduledoc false
   use Ecto.Schema
+
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
@@ -39,9 +41,7 @@ defmodule ShowcagoServices.Users.User do
     changeset =
       changeset
       |> validate_required([:email])
-      |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
-        message: "must have the @ sign and no spaces"
-      )
+      |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/, message: "must have the @ sign and no spaces")
       |> validate_length(:email, max: 160)
 
     if Keyword.get(opts, :validate_unique, true) do
@@ -88,9 +88,7 @@ defmodule ShowcagoServices.Users.User do
   A user changeset for changing the role.
   """
   def role_changeset(user, attrs) do
-    changeset =
-      user
-      |> cast(attrs, [:role])
+    changeset = cast(user, attrs, [:role])
 
     if Map.has_key?(attrs, :role) or Map.has_key?(attrs, "role") do
       changeset

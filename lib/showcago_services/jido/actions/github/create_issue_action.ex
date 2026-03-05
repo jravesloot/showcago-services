@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Jido.Actions.GitHub.CreateIssueAction do
+  @moduledoc false
   use Jido.Action,
     name: "create_github_issue",
     description: "Creates a new issue in the GitHub repository.",
@@ -21,7 +22,7 @@ defmodule ShowcagoServices.Jido.Actions.GitHub.CreateIssueAction do
     labels = Map.get(params, :labels, [])
 
     issue_body = %{title: title, body: body}
-    issue_body = if labels != [], do: Map.put(issue_body, :labels, labels), else: issue_body
+    issue_body = if labels == [], do: issue_body, else: Map.put(issue_body, :labels, labels)
 
     case GitHub.post("/repos/#{owner}/#{repo}/issues", issue_body) do
       {:ok, %{"html_url" => url, "number" => number}} ->

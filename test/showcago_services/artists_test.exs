@@ -2,8 +2,8 @@ defmodule ShowcagoServices.ArtistsTest do
   use ShowcagoServices.DataCase, async: true
 
   alias ShowcagoServices.Artists
-  alias ShowcagoServices.Schema.Artist
   alias ShowcagoServices.Repo
+  alias ShowcagoServices.Schema.Artist
 
   describe "match_artists_in_text/2" do
     test "matches artist names embedded in longer event titles" do
@@ -21,7 +21,7 @@ defmodule ShowcagoServices.ArtistsTest do
 
       assert "Boris" in names
       assert "Bongzilla" in names
-      assert "The Body" not in names
+      refute "The Body" in names
     end
 
     test "does not match on partial-word false positives" do

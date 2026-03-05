@@ -1,6 +1,9 @@
 defmodule ShowcagoServices.Users.UserToken do
+  @moduledoc false
   use Ecto.Schema
+
   import Ecto.Query
+
   alias ShowcagoServices.Users.UserToken
 
   @hash_algorithm :sha256

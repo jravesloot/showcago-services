@@ -24,20 +24,19 @@ defmodule ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster do
     fetch_ticketmaster_events_fun =
       Keyword.get(opts, :fetch_ticketmaster_events_fun, &fetch_thalia_hall_ticketmaster_events/0)
 
-    with {:ok, tm_events} <- fetch_ticketmaster_events_fun.() do
-      Logger.info("[venue_parser] thalia ticketmaster events fetched count=#{length(tm_events)}")
+    case fetch_ticketmaster_events_fun.() do
+      {:ok, tm_events} ->
+        Logger.info("[venue_parser] thalia ticketmaster events fetched count=#{length(tm_events)}")
 
-      {:ok,
-       Jason.encode!(%{
-         "source" => "thalia_hall_ticketmaster_api",
-         "fetched_at" => DateTime.utc_now(:second) |> DateTime.to_iso8601(),
-         "events" => tm_events
-       })}
-    else
+        {:ok,
+         Jason.encode!(%{
+           "source" => "thalia_hall_ticketmaster_api",
+           "fetched_at" => :second |> DateTime.utc_now() |> DateTime.to_iso8601(),
+           "events" => tm_events
+         })}
+
       {:error, reason} ->
-        Logger.warning(
-          "[venue_parser] thalia ticketmaster fetch failed reason=#{inspect(reason)}"
-        )
+        Logger.warning("[venue_parser] thalia ticketmaster fetch failed reason=#{inspect(reason)}")
 
         {:error, reason}
     end
@@ -60,24 +59,19 @@ defmodule ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster do
 
   defp fetch_thalia_hall_ticketmaster_events do
     events =
-      @thalia_hall_tm_urls
-      |> Enum.flat_map(fn url ->
+      Enum.flat_map(@thalia_hall_tm_urls, fn url ->
         case Req.get(url: url) do
           {:ok, %Req.Response{status: status, body: body}}
           when status in 200..299 and is_map(body) ->
             get_in(body, ["_embedded", "events"]) || []
 
           {:ok, %Req.Response{status: status}} ->
-            Logger.warning(
-              "[venue_parser] thalia ticketmaster non-200 status=#{status} url=#{url}"
-            )
+            Logger.warning("[venue_parser] thalia ticketmaster non-200 status=#{status} url=#{url}")
 
             []
 
           {:error, reason} ->
-            Logger.warning(
-              "[venue_parser] thalia ticketmaster request failed reason=#{inspect(reason)} url=#{url}"
-            )
+            Logger.warning("[venue_parser] thalia ticketmaster request failed reason=#{inspect(reason)} url=#{url}")
 
             []
         end

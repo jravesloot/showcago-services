@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Jido.Actions.GitHub.OpenPullRequestAction do
+  @moduledoc false
   use Jido.Action,
     name: "open_github_pull_request",
     description: "Opens a pull request in the GitHub repository.",

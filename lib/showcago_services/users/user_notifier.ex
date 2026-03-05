@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Users.UserNotifier do
+  @moduledoc false
   import Swoosh.Email
 
   alias ShowcagoServices.Mailer

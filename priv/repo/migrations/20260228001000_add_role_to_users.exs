@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Repo.Migrations.AddRoleToUsers do
+  @moduledoc false
   use Ecto.Migration
 
   def change do

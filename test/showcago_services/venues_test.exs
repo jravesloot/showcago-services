@@ -205,7 +205,7 @@ defmodule ShowcagoServices.VenuesTest do
       insert_source_payload!(
         venue,
         "thalia_hall_ticketmaster",
-        "{\"source\":\"thalia_hall_ticketmaster_api\",\"events\":[]}",
+        ~s({"source":"thalia_hall_ticketmaster_api","events":[]}),
         "json"
       )
 
@@ -254,9 +254,7 @@ defmodule ShowcagoServices.VenuesTest do
                )
 
       assert {:ok, result} =
-               Venues.parse_schedule_payload_and_create_shows_for_source(
-                 "thalia_hall_ticketmaster"
-               )
+               Venues.parse_schedule_payload_and_create_shows_for_source("thalia_hall_ticketmaster")
 
       assert result.parsed_events_count == 1
       assert result.matched_events_count == 1
@@ -267,9 +265,7 @@ defmodule ShowcagoServices.VenuesTest do
       assert show.ticket_url ==
                "https://www.ticketweb.com/event/hanumankind-thalia-hall-tickets/123"
 
-      show_artist_ids =
-        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
-        |> Repo.all()
+      show_artist_ids = Repo.all(from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id))
 
       assert artist.id in show_artist_ids
     end
@@ -310,9 +306,7 @@ defmodule ShowcagoServices.VenuesTest do
       show = Repo.one!(from s in Show, where: s.venue_id == ^venue.id)
       assert show.ticket_url == "https://www.saltshedchicago.com/event/james-blake"
 
-      show_artist_ids =
-        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
-        |> Repo.all()
+      show_artist_ids = Repo.all(from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id))
 
       assert artist.id in show_artist_ids
     end
@@ -350,9 +344,7 @@ defmodule ShowcagoServices.VenuesTest do
 
       show = Repo.one!(from s in Show, where: s.venue_id == ^venue.id)
 
-      show_artist_ids =
-        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
-        |> Repo.all()
+      show_artist_ids = Repo.all(from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id))
 
       assert artist_1.id in show_artist_ids
       assert artist_2.id in show_artist_ids
@@ -453,9 +445,7 @@ defmodule ShowcagoServices.VenuesTest do
 
     test "parse_schedule_payload_and_create_shows_for_source/1 returns not found for thalia when missing" do
       assert {:error, :thalia_hall_not_found} =
-               Venues.parse_schedule_payload_and_create_shows_for_source(
-                 "thalia_hall_ticketmaster"
-               )
+               Venues.parse_schedule_payload_and_create_shows_for_source("thalia_hall_ticketmaster")
     end
 
     test "parse_schedule_payload_and_create_shows_for_source/1 parses salt shed source" do
@@ -487,9 +477,7 @@ defmodule ShowcagoServices.VenuesTest do
       show = Repo.one!(from(s in Show))
       assert show.ticket_url == "https://www.axs.com/events/123/stereolab-tickets"
 
-      show_artist_ids =
-        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
-        |> Repo.all()
+      show_artist_ids = Repo.all(from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id))
 
       assert artist.id in show_artist_ids
     end
@@ -535,9 +523,7 @@ defmodule ShowcagoServices.VenuesTest do
       show = Repo.one!(from(s in Show))
       assert show.ticket_url == "https://www.axs.com/events/123/stereolab-tickets"
 
-      show_artist_ids =
-        from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id)
-        |> Repo.all()
+      show_artist_ids = Repo.all(from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id))
 
       assert artist.id in show_artist_ids
     end

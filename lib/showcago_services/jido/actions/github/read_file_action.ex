@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Jido.Actions.GitHub.ReadFileAction do
+  @moduledoc false
   use Jido.Action,
     name: "read_github_file",
     description: "Reads the contents of a file from the GitHub repository.",

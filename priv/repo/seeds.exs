@@ -10,15 +10,15 @@
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
+alias ShowcagoServices.Repo
 alias ShowcagoServices.Schema.Artist
 alias ShowcagoServices.Schema.Venue
-alias ShowcagoServices.Repo
 
 artists_csv_path = Application.app_dir(:showcago_services, "priv/repo/seeds/artists.csv")
 
 artists =
   artists_csv_path
-  |> File.stream!([], :line)
+  |> File.stream!(:line, [])
   |> Stream.map(&String.trim/1)
   |> Stream.reject(&(&1 in ["", "Artist"]))
   |> Stream.map(fn line ->
@@ -30,8 +30,7 @@ artists =
         line
       end
 
-    stripped_line
-    |> String.replace("\"\"", "\"")
+    String.replace(stripped_line, "\"\"", "\"")
   end)
   |> Enum.uniq()
 
@@ -66,7 +65,7 @@ end
 
 venues =
   venues_csv_path
-  |> File.stream!([], :line)
+  |> File.stream!(:line, [])
   |> Stream.map(&String.trim/1)
   |> Stream.reject(&(&1 in ["", "Name,Address,City,State,ZipCode,Website"]))
   |> Stream.map(fn line ->

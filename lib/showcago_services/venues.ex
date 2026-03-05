@@ -4,7 +4,6 @@ defmodule ShowcagoServices.Venues do
   """
 
   import Ecto.Query, warn: false
-  require Logger
 
   alias ShowcagoServices.Artists
   alias ShowcagoServices.Repo
@@ -13,6 +12,8 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
+
+  require Logger
 
   @source_modules [SaltShedTicketmaster, ThaliaHallTicketmaster]
 
@@ -122,11 +123,12 @@ defmodule ShowcagoServices.Venues do
 
   @spec list_venue_sources(Venue.t()) :: [VenueSource.t()]
   def list_venue_sources(%Venue{} = venue) do
-    from(vs in VenueSource,
-      where: vs.venue_id == ^venue.id,
-      order_by: [asc: vs.source_key, desc: vs.fetched_at, desc: vs.id]
+    Repo.all(
+      from(vs in VenueSource,
+        where: vs.venue_id == ^venue.id,
+        order_by: [asc: vs.source_key, desc: vs.fetched_at, desc: vs.id]
+      )
     )
-    |> Repo.all()
   end
 
   @spec get_venue_source(Venue.t(), term()) :: VenueSource.t() | nil
@@ -280,25 +282,27 @@ defmodule ShowcagoServices.Venues do
   end
 
   defp get_venue_for_source(source_module) do
-    from(vs in VenueSource,
-      where: vs.source_key == ^source_module.source_key() and vs.enabled == true,
-      order_by: [desc: vs.fetched_at, desc: vs.id],
-      join: v in Venue,
-      on: v.id == vs.venue_id,
-      select: v,
-      limit: 1
+    Repo.one(
+      from(vs in VenueSource,
+        where: vs.source_key == ^source_module.source_key() and vs.enabled == true,
+        order_by: [desc: vs.fetched_at, desc: vs.id],
+        join: v in Venue,
+        on: v.id == vs.venue_id,
+        select: v,
+        limit: 1
+      )
     )
-    |> Repo.one()
   end
 
   defp latest_source_key_for_venue(%Venue{} = venue) do
-    from(vs in VenueSource,
-      where: vs.venue_id == ^venue.id and vs.enabled == true,
-      order_by: [desc: vs.fetched_at, desc: vs.id],
-      select: vs.source_key,
-      limit: 1
+    Repo.one(
+      from(vs in VenueSource,
+        where: vs.venue_id == ^venue.id and vs.enabled == true,
+        order_by: [desc: vs.fetched_at, desc: vs.id],
+        select: vs.source_key,
+        limit: 1
+      )
     )
-    |> Repo.one()
   end
 
   defp venue_for_source_module(source_module) do
@@ -326,40 +330,36 @@ defmodule ShowcagoServices.Venues do
         source_module.default_refresh_interval_seconds()
       )
 
-    cond do
-      force? or
-          stale_for_collection?(
-            source_last_collected_at(venue, source_module),
-            refresh_interval_seconds
-          ) ->
-        with {:ok, payload} <- source_module.collect_payload(venue, opts),
-             {:ok, _source_row} <-
-               upsert_source_payload(venue, source_module, payload) do
-          {:ok, venue, :updated}
-        end
-
-      true ->
-        {:ok, venue, :skipped}
+    if force? or
+         stale_for_collection?(
+           source_last_collected_at(venue, source_module),
+           refresh_interval_seconds
+         ) do
+      with {:ok, payload} <- source_module.collect_payload(venue, opts),
+           {:ok, _source_row} <-
+             upsert_source_payload(venue, source_module, payload) do
+        {:ok, venue, :updated}
+      end
+    else
+      {:ok, venue, :skipped}
     end
   end
 
   defp source_last_collected_at(%Venue{} = venue, source_module) do
     source_fetched_at =
-      from(vs in VenueSource,
-        where:
-          vs.venue_id == ^venue.id and vs.source_key == ^source_module.source_key() and
-            not is_nil(vs.fetched_at),
-        order_by: [desc: vs.fetched_at, desc: vs.id],
-        select: vs.fetched_at,
-        limit: 1
+      Repo.one(
+        from(vs in VenueSource,
+          where: vs.venue_id == ^venue.id and vs.source_key == ^source_module.source_key() and not is_nil(vs.fetched_at),
+          order_by: [desc: vs.fetched_at, desc: vs.id],
+          select: vs.fetched_at,
+          limit: 1
+        )
       )
-      |> Repo.one()
 
     source_fetched_at
   end
 
-  defp upsert_source_payload(%Venue{} = venue, source_module, payload)
-       when is_binary(payload) do
+  defp upsert_source_payload(%Venue{} = venue, source_module, payload) when is_binary(payload) do
     attrs = %{
       venue_id: venue.id,
       source_key: source_module.source_key(),
@@ -394,35 +394,38 @@ defmodule ShowcagoServices.Venues do
   end
 
   defp get_source_payload(%Venue{} = venue, source_module) do
-    from(vs in VenueSource,
-      where: vs.venue_id == ^venue.id and vs.source_key == ^source_module.source_key(),
-      order_by: [desc: vs.fetched_at, desc: vs.id],
-      select: vs.raw_payload,
-      limit: 1
+    Repo.one(
+      from(vs in VenueSource,
+        where: vs.venue_id == ^venue.id and vs.source_key == ^source_module.source_key(),
+        order_by: [desc: vs.fetched_at, desc: vs.id],
+        select: vs.raw_payload,
+        limit: 1
+      )
     )
-    |> Repo.one()
   end
 
   @spec latest_source_payload_for_venue(Venue.t()) :: binary() | nil
   def latest_source_payload_for_venue(%Venue{} = venue) do
-    from(vs in VenueSource,
-      where: vs.venue_id == ^venue.id,
-      order_by: [desc: vs.fetched_at, desc: vs.id],
-      select: vs.raw_payload,
-      limit: 1
+    Repo.one(
+      from(vs in VenueSource,
+        where: vs.venue_id == ^venue.id,
+        order_by: [desc: vs.fetched_at, desc: vs.id],
+        select: vs.raw_payload,
+        limit: 1
+      )
     )
-    |> Repo.one()
   end
 
   @spec latest_source_fetched_at_for_venue(Venue.t()) :: DateTime.t() | nil
   def latest_source_fetched_at_for_venue(%Venue{} = venue) do
-    from(vs in VenueSource,
-      where: vs.venue_id == ^venue.id and not is_nil(vs.fetched_at),
-      order_by: [desc: vs.fetched_at, desc: vs.id],
-      select: vs.fetched_at,
-      limit: 1
+    Repo.one(
+      from(vs in VenueSource,
+        where: vs.venue_id == ^venue.id and not is_nil(vs.fetched_at),
+        order_by: [desc: vs.fetched_at, desc: vs.id],
+        select: vs.fetched_at,
+        limit: 1
+      )
     )
-    |> Repo.one()
   end
 
   defp infer_payload_format(payload) when is_binary(payload) do
@@ -436,39 +439,42 @@ defmodule ShowcagoServices.Venues do
   end
 
   defp find_or_create_show(venue, artist_ids, event) when is_list(artist_ids) do
-    with {:ok, starts_at} <- parse_event_datetime(event.start_date) do
-      existing_show_id =
-        from(s in Show,
-          where: s.venue_id == ^venue.id and s.date == ^starts_at and s.notes == ^event.name,
-          select: s.id,
-          limit: 1
-        )
-        |> Repo.one()
+    case parse_event_datetime(event.start_date) do
+      {:ok, starts_at} ->
+        existing_show_id =
+          Repo.one(
+            from(s in Show,
+              where: s.venue_id == ^venue.id and s.date == ^starts_at and s.notes == ^event.name,
+              select: s.id,
+              limit: 1
+            )
+          )
 
-      if existing_show_id do
-        attach_artists_to_show(existing_show_id, artist_ids)
-        :existing
-      else
-        now = DateTime.utc_now(:second)
+        if existing_show_id do
+          attach_artists_to_show(existing_show_id, artist_ids)
+          :existing
+        else
+          now = DateTime.utc_now(:second)
 
-        Repo.transaction(fn ->
-          {:ok, show} =
-            %Show{}
-            |> Show.changeset(%{
-              date: starts_at,
-              venue_id: venue.id,
-              ticket_url: event.url,
-              notes: event.name
-            })
-            |> Repo.insert()
+          Repo.transaction(fn ->
+            {:ok, show} =
+              %Show{}
+              |> Show.changeset(%{
+                date: starts_at,
+                venue_id: venue.id,
+                ticket_url: event.url,
+                notes: event.name
+              })
+              |> Repo.insert()
 
-          insert_show_artists(show.id, artist_ids, now)
-        end)
+            insert_show_artists(show.id, artist_ids, now)
+          end)
 
-        :created
-      end
-    else
-      _ -> :invalid_event
+          :created
+        end
+
+      _ ->
+        :invalid_event
     end
   end
 
@@ -491,9 +497,10 @@ defmodule ShowcagoServices.Venues do
         {:ok, DateTime.truncate(dt, :second)}
 
       _ ->
-        with {:ok, naive} <- NaiveDateTime.from_iso8601(start_date) do
-          {:ok, DateTime.from_naive!(NaiveDateTime.truncate(naive, :second), "Etc/UTC")}
-        else
+        case NaiveDateTime.from_iso8601(start_date) do
+          {:ok, naive} ->
+            {:ok, DateTime.from_naive!(NaiveDateTime.truncate(naive, :second), "Etc/UTC")}
+
           _ ->
             with {:ok, date} <- Date.from_iso8601(start_date),
                  {:ok, naive} <- NaiveDateTime.new(date, ~T[00:00:00]),

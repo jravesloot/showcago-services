@@ -17,17 +17,19 @@ defmodule ShowcagoServicesWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias ShowcagoServices.Users.Scope
+
   using do
     quote do
+      use ShowcagoServicesWeb, :verified_routes
+
+      import Phoenix.ConnTest
+      import Plug.Conn
+      import ShowcagoServicesWeb.ConnCase
       # The default endpoint for testing
       @endpoint ShowcagoServicesWeb.Endpoint
 
-      use ShowcagoServicesWeb, :verified_routes
-
       # Import conveniences for testing with connections
-      import Plug.Conn
-      import Phoenix.ConnTest
-      import ShowcagoServicesWeb.ConnCase
     end
   end
 
@@ -46,12 +48,12 @@ defmodule ShowcagoServicesWeb.ConnCase do
   """
   def register_and_log_in_user(%{conn: conn} = context) do
     user = ShowcagoServices.UsersFixtures.user_fixture()
-    scope = ShowcagoServices.Users.Scope.for_user(user)
+    scope = Scope.for_user(user)
 
     opts =
       context
       |> Map.take([:token_authenticated_at])
-      |> Enum.into([])
+      |> Enum.to_list()
 
     %{conn: log_in_user(conn, user, opts), user: user, scope: scope}
   end
@@ -66,12 +68,12 @@ defmodule ShowcagoServicesWeb.ConnCase do
   """
   def register_and_log_in_admin_user(%{conn: conn} = context) do
     user = ShowcagoServices.UsersFixtures.admin_user_fixture()
-    scope = ShowcagoServices.Users.Scope.for_user(user)
+    scope = Scope.for_user(user)
 
     opts =
       context
       |> Map.take([:token_authenticated_at])
-      |> Enum.into([])
+      |> Enum.to_list()
 
     %{conn: log_in_user(conn, user, opts), user: user, scope: scope}
   end

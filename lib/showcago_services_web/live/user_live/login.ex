@@ -1,4 +1,5 @@
 defmodule ShowcagoServicesWeb.UserLive.Login do
+  @moduledoc false
   use ShowcagoServicesWeb, :live_view
 
   alias ShowcagoServices.Users

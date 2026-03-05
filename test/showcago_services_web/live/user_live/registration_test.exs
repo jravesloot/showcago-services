@@ -43,7 +43,8 @@ defmodule ShowcagoServicesWeb.UserLive.RegistrationTest do
       form = form(lv, "#registration_form", user: valid_user_attributes(email: email))
 
       {:ok, _lv, html} =
-        render_submit(form)
+        form
+        |> render_submit()
         |> follow_redirect(conn, ~p"/users/log-in")
 
       assert html =~

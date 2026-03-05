@@ -24,7 +24,7 @@ defmodule ShowcagoServices.GitHub.Auth do
         :expired
 
       {token, expires_at} ->
-        if DateTime.compare(DateTime.utc_now(), expires_at) == :lt do
+        if DateTime.before?(DateTime.utc_now(), expires_at) do
           {:ok, token}
         else
           :expired

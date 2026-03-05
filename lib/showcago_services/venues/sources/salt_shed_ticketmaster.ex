@@ -25,16 +25,17 @@ defmodule ShowcagoServices.Venues.Sources.SaltShedTicketmaster do
     fetch_ticketmaster_events_fun =
       Keyword.get(opts, :fetch_ticketmaster_events_fun, &fetch_salt_shed_ticketmaster_events/0)
 
-    with {:ok, tm_events} <- fetch_ticketmaster_events_fun.() do
-      Logger.info("[venue_parser] ticketmaster events fetched count=#{length(tm_events)}")
+    case fetch_ticketmaster_events_fun.() do
+      {:ok, tm_events} ->
+        Logger.info("[venue_parser] ticketmaster events fetched count=#{length(tm_events)}")
 
-      {:ok,
-       Jason.encode!(%{
-         "source" => "salt_shed_ticketmaster_api",
-         "fetched_at" => DateTime.utc_now(:second) |> DateTime.to_iso8601(),
-         "events" => tm_events
-       })}
-    else
+        {:ok,
+         Jason.encode!(%{
+           "source" => "salt_shed_ticketmaster_api",
+           "fetched_at" => :second |> DateTime.utc_now() |> DateTime.to_iso8601(),
+           "events" => tm_events
+         })}
+
       {:error, reason} ->
         Logger.warning("[venue_parser] ticketmaster fetch failed reason=#{inspect(reason)}")
         {:error, reason}
@@ -58,8 +59,7 @@ defmodule ShowcagoServices.Venues.Sources.SaltShedTicketmaster do
 
   defp fetch_salt_shed_ticketmaster_events do
     events =
-      @salt_shed_tm_urls
-      |> Enum.flat_map(fn url ->
+      Enum.flat_map(@salt_shed_tm_urls, fn url ->
         case Req.get(url: url) do
           {:ok, %Req.Response{status: status, body: body}}
           when status in 200..299 and is_map(body) ->
@@ -70,9 +70,7 @@ defmodule ShowcagoServices.Venues.Sources.SaltShedTicketmaster do
             []
 
           {:error, reason} ->
-            Logger.warning(
-              "[venue_parser] ticketmaster request failed reason=#{inspect(reason)} url=#{url}"
-            )
+            Logger.warning("[venue_parser] ticketmaster request failed reason=#{inspect(reason)} url=#{url}")
 
             []
         end

@@ -1,4 +1,5 @@
 defmodule ShowcagoServices.Repo.Migrations.CreateVenueSources do
+  @moduledoc false
   use Ecto.Migration
 
   def change do

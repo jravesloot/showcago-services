@@ -1,8 +1,9 @@
 defmodule ShowcagoServicesWeb.Admin.VenueLive do
+  @moduledoc false
   use ShowcagoServicesWeb, :live_view
 
-  alias ShowcagoServices.Venues
   alias ShowcagoServices.Schema.Venue
+  alias ShowcagoServices.Venues
 
   @per_page 50
 
@@ -144,12 +145,10 @@ defmodule ShowcagoServicesWeb.Admin.VenueLive do
 
   defp format_location(venue) do
     parts =
-      [
-        if(venue.city, do: venue.city, else: nil),
-        if(venue.state, do: venue.state, else: nil),
-        if(venue.zip_code, do: venue.zip_code, else: nil)
-      ]
-      |> Enum.reject(&is_nil/1)
+      Enum.reject(
+        [if(venue.city, do: venue.city), if(venue.state, do: venue.state), if(venue.zip_code, do: venue.zip_code)],
+        &is_nil/1
+      )
 
     cond do
       length(parts) == 0 -> ""

@@ -3,8 +3,8 @@ defmodule ShowcagoServices.Events do
 
   alias ShowcagoServices.Artists
   alias ShowcagoServices.Schema.Artist
-  alias ShowcagoServices.Venues
   alias ShowcagoServices.Schema.Venue
+  alias ShowcagoServices.Venues
 
   @spec match_artists_in_text(binary(), keyword()) :: [Artists.artist_match()]
   defdelegate match_artists_in_text(text, opts \\ []), to: Artists
