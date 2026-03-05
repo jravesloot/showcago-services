@@ -4,7 +4,8 @@ defmodule ShowcagoServices.Jido.CodeAgent do
     ListFilesAction,
     CreateBranchAction,
     CommitFileAction,
-    OpenPullRequestAction
+    OpenPullRequestAction,
+    CreateIssueAction
   }
 
   use Jido.AI.Agent,
@@ -19,7 +20,8 @@ defmodule ShowcagoServices.Jido.CodeAgent do
       ListFilesAction,
       CreateBranchAction,
       CommitFileAction,
-      OpenPullRequestAction
+      OpenPullRequestAction,
+      CreateIssueAction
     ],
     system_prompt: """
     You are a developer assistant that makes code changes to the showcago-services
@@ -30,6 +32,7 @@ defmodule ShowcagoServices.Jido.CodeAgent do
     - create a new branch from main
     - commit file changes (create or update) to a branch
     - open a pull request
+    - create an issue (optionally with labels)
 
     ## Repo structure
 
