@@ -7,7 +7,7 @@ defmodule ShowcagoServices.Venues.Sources.AragonBallroomTicketmaster do
 
   @default_refresh_interval_seconds 3_600
   @aragon_ballroom_tm_urls [
-    "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZpZAJ6tEA"
+    "https://app.ticketmaster.com/discovery/v2/events.json?size=200&apikey=VlcOb6C2Y4W0iGius6pFX1Gh7a9GnKyg&venueId=KovZpZAFdJnA"
   ]
 
   @impl true
