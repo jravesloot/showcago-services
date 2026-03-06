@@ -13,6 +13,8 @@ defmodule ShowcagoServices.Application do
         ShowcagoServices.Repo,
         {DNSCluster, query: Application.get_env(:showcago_services, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: ShowcagoServices.PubSub},
+        {Task.Supervisor, name: ShowcagoServices.TaskSupervisor},
+        {Oban, Application.fetch_env!(:showcago_services, Oban)},
         ShowcagoServicesWeb.Endpoint,
         {Jido, name: Jido}
       ] ++ telegram_children()

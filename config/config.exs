@@ -33,6 +33,16 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+config :showcago_services, Oban,
+  repo: ShowcagoServices.Repo,
+  queues: [default: 10, collection: 2],
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"0 5 * * *", ShowcagoServices.Workers.DispatchCollectionWorker}
+     ]}
+  ]
+
 # Jido
 config :showcago_services, ShowcagoServices.Jido,
   max_tasks: 100,

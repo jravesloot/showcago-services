@@ -17,6 +17,8 @@ config :phoenix,
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
 
+config :showcago_services, Oban, testing: :manual
+
 # In test we don't send emails
 config :showcago_services, ShowcagoServices.Mailer, adapter: Swoosh.Adapters.Test
 

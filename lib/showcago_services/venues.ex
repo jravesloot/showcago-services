@@ -17,6 +17,11 @@ defmodule ShowcagoServices.Venues do
 
   @source_modules [SaltShedTicketmaster, ThaliaHallTicketmaster]
 
+  @doc """
+  Returns the list of configured source modules.
+  """
+  def source_modules, do: @source_modules
+
   @default_event_artist_match_limit 5
 
   @spec list_venues(keyword()) :: [Venue.t()]
@@ -339,6 +344,10 @@ defmodule ShowcagoServices.Venues do
            {:ok, _source_row} <-
              upsert_source_payload(venue, source_module, payload) do
         {:ok, venue, :updated}
+      else
+        {:error, reason} = error ->
+          record_source_error(venue, source_module, reason)
+          error
       end
     else
       {:ok, venue, :skipped}
@@ -391,6 +400,16 @@ defmodule ShowcagoServices.Venues do
        venue_id: venue.id,
        source_key: source_module.source_key()
      )}
+  end
+
+  defp record_source_error(%Venue{} = venue, source_module, reason) do
+    error_message = inspect(reason, limit: 500)
+    Logger.warning("[venues] collection failed source=#{source_module.source_key()} error=#{error_message}")
+
+    Repo.update_all(
+      from(vs in VenueSource, where: vs.venue_id == ^venue.id and vs.source_key == ^source_module.source_key()),
+      set: [last_error: error_message, updated_at: DateTime.utc_now(:second)]
+    )
   end
 
   defp get_source_payload(%Venue{} = venue, source_module) do
