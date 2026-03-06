@@ -1,18 +1,9 @@
 # ShowcagoServices
 
-To start your Phoenix server:
+A Work in Progress.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
-
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
-
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
-
-## Learn more
-
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+AI-powered concert concierge that finds and tracks upcoming shows for me and my friends.
+Uses the [Jido](https://jido.run/) agent framework to provide a flexible user interface
+over Telegram for various user operations such as ignoring, registering interest, and
+tracking tickets purchased for shows. An additional agent monitors the event sourcing
+in order to raise issues or repair data acquisition autonomously.
