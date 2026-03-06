@@ -10,17 +10,26 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Schema.Show
   alias ShowcagoServices.Schema.Venue
   alias ShowcagoServices.Schema.VenueSource
+  alias ShowcagoServices.Venues.Sources.AragonBallroomTicketmaster
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
   require Logger
 
-  @source_modules [SaltShedTicketmaster, ThaliaHallTicketmaster]
+  @source_modules [AragonBallroomTicketmaster, SaltShedTicketmaster, ThaliaHallTicketmaster]
 
   @doc """
   Returns the list of configured source modules.
   """
   def source_modules, do: @source_modules
+
+  @doc """
+  Returns true if the given source key has a registered source module.
+  """
+  @spec known_source_key?(binary()) :: boolean()
+  def known_source_key?(source_key) when is_binary(source_key) do
+    Enum.any?(@source_modules, &(&1.source_key() == source_key))
+  end
 
   @default_event_artist_match_limit 5
 
@@ -319,6 +328,7 @@ defmodule ShowcagoServices.Venues do
 
   defp not_found_error_for_source(source_key) do
     cond do
+      source_key == AragonBallroomTicketmaster.source_key() -> :aragon_ballroom_not_found
       source_key == SaltShedTicketmaster.source_key() -> :salt_shed_not_found
       source_key == ThaliaHallTicketmaster.source_key() -> :thalia_hall_not_found
       true -> :venue_not_found_for_source

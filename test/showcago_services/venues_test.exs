@@ -482,6 +482,119 @@ defmodule ShowcagoServices.VenuesTest do
       assert artist.id in show_artist_ids
     end
 
+    test "collect_schedule_payload_for_source/2 returns not found for aragon ballroom when missing" do
+      assert {:error, :aragon_ballroom_not_found} =
+               Venues.collect_schedule_payload_for_source("aragon_ballroom_ticketmaster",
+                 force: true
+               )
+    end
+
+    test "collect_schedule_payload_for_source/2 stores raw api payload for aragon ballroom" do
+      venue = create_venue!(%{name: "Aragon Ballroom"})
+      insert_source_config!(venue, "aragon_ballroom_ticketmaster")
+
+      fetch_ticketmaster_events_fun = fn ->
+        {:ok,
+         [
+           %{
+             "name" => "Bad Bunny",
+             "url" => "https://www.ticketmaster.com/event/aragon-ballroom-bad-bunny/456",
+             "dates" => %{"start" => %{"dateTime" => "2026-07-15T01:00:00Z"}}
+           }
+         ]}
+      end
+
+      assert {:ok, updated, :updated} =
+               Venues.collect_schedule_payload_for_source("aragon_ballroom_ticketmaster",
+                 force: true,
+                 fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
+               )
+
+      assert updated.id == venue.id
+
+      source_row =
+        Repo.get_by!(VenueSource,
+          venue_id: venue.id,
+          source_key: "aragon_ballroom_ticketmaster"
+        )
+
+      assert {:ok, payload} = Jason.decode(source_row.raw_payload)
+      assert payload["source"] == "aragon_ballroom_ticketmaster_api"
+      assert is_binary(payload["fetched_at"])
+      assert is_list(payload["events"])
+      assert Enum.any?(payload["events"], &(&1["name"] == "Bad Bunny"))
+
+      assert source_row.payload_format == "json"
+      assert %DateTime{} = source_row.fetched_at
+    end
+
+    test "collect_schedule_payload_for_source/2 skips when recently collected for aragon ballroom" do
+      venue = create_venue!(%{name: "Aragon Ballroom"})
+
+      insert_source_payload!(
+        venue,
+        "aragon_ballroom_ticketmaster",
+        ~s({"source":"aragon_ballroom_ticketmaster_api","events":[]}),
+        "json"
+      )
+
+      fetch_ticketmaster_events_fun = fn ->
+        flunk("fetch_ticketmaster_events_fun should not be called when request is throttled")
+      end
+
+      assert {:ok, same_venue, :skipped} =
+               Venues.collect_schedule_payload_for_source("aragon_ballroom_ticketmaster",
+                 fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun,
+                 refresh_interval_seconds: 3_600
+               )
+
+      assert same_venue.id == venue.id
+    end
+
+    test "parses shows from stored aragon ballroom api payload" do
+      {:ok, artist} =
+        %Artist{}
+        |> Artist.changeset(%{name: "Bad Bunny"})
+        |> Repo.insert()
+
+      _venue = create_venue!(%{name: "Aragon Ballroom"})
+
+      venue = Repo.get_by!(Venue, name: "Aragon Ballroom")
+      insert_source_config!(venue, "aragon_ballroom_ticketmaster")
+
+      fetch_ticketmaster_events_fun = fn ->
+        {:ok,
+         [
+           %{
+             "name" => "Bad Bunny",
+             "url" => "https://www.ticketmaster.com/event/aragon-ballroom-bad-bunny/456",
+             "dates" => %{"start" => %{"dateTime" => "2026-07-15T01:00:00Z"}}
+           }
+         ]}
+      end
+
+      assert {:ok, _updated, :updated} =
+               Venues.collect_schedule_payload_for_source("aragon_ballroom_ticketmaster",
+                 force: true,
+                 fetch_ticketmaster_events_fun: fetch_ticketmaster_events_fun
+               )
+
+      assert {:ok, result} =
+               Venues.parse_schedule_payload_and_create_shows_for_source("aragon_ballroom_ticketmaster")
+
+      assert result.parsed_events_count == 1
+      assert result.matched_events_count == 1
+      assert result.created_shows_count == 1
+
+      show = Repo.one!(from(s in Show))
+      assert show.ticket_url == "https://www.ticketmaster.com/event/aragon-ballroom-bad-bunny/456"
+
+      show_artist_ids =
+        Repo.all(from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id))
+
+      assert artist.id in show_artist_ids
+    end
+
     test "parses shows from stored salt shed api payload" do
       {:ok, artist} =
         %Artist{}
