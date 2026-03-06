@@ -223,28 +223,76 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLiveTest do
     assert Repo.get!(Show, show.id).ignored == false
   end
 
-  test "shows collect source data button for Thalia Hall", %{conn: conn} do
+  test "shows collect and match buttons for registered sources", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{
         name: "Thalia Hall",
         website: "https://www.thaliahallchicago.com"
       })
 
+    source =
+      %VenueSource{}
+      |> VenueSource.changeset(%{
+        venue_id: venue.id,
+        source_key: "thalia_hall_ticketmaster",
+        raw_payload: ~s({"source":"thalia_hall_ticketmaster_api","events":[]}),
+        payload_format: "json",
+        fetched_at: DateTime.utc_now(:second),
+        enabled: true
+      })
+      |> Repo.insert!()
+
     {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
 
-    assert has_element?(view, "#collect-thalia-schedule", "Collect Source Data")
+    assert has_element?(view, "#collect-source-#{source.id}", "Collect")
+    assert has_element?(view, "#match-source-#{source.id}", "Match Shows")
   end
 
-  test "does not show collect source data button for non-Thalia venues", %{conn: conn} do
+  test "does not show collect/match buttons for unregistered source keys", %{conn: conn} do
     {:ok, venue} =
       Venues.create_venue(%{
         name: "The Salt Shed",
         website: "https://www.saltshedchicago.com"
       })
 
+    source =
+      %VenueSource{}
+      |> VenueSource.changeset(%{
+        venue_id: venue.id,
+        source_key: "unknown_scraper",
+        raw_payload: "<div>data</div>",
+        payload_format: "html",
+        fetched_at: DateTime.utc_now(:second),
+        enabled: true
+      })
+      |> Repo.insert!()
+
     {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
 
-    refute has_element?(view, "#collect-thalia-schedule")
+    refute has_element?(view, "#collect-source-#{source.id}")
+    refute has_element?(view, "#match-source-#{source.id}")
+  end
+
+  test "does not show match button when source has no payload", %{conn: conn} do
+    {:ok, venue} =
+      Venues.create_venue(%{
+        name: "Thalia Hall",
+        website: "https://www.thaliahallchicago.com"
+      })
+
+    source =
+      %VenueSource{}
+      |> VenueSource.changeset(%{
+        venue_id: venue.id,
+        source_key: "thalia_hall_ticketmaster",
+        enabled: true
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/venues/#{venue.id}")
+
+    assert has_element?(view, "#collect-source-#{source.id}", "Collect")
+    refute has_element?(view, "#match-source-#{source.id}")
   end
 
   test "can add a venue source and view its raw payload", %{conn: conn} do

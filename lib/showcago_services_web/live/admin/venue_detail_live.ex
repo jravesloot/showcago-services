@@ -20,6 +20,8 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
      |> assign(:editing_source_id, nil)
      |> assign(:show_source_form, false)
      |> assign(:source_form, to_form(Venues.change_venue_source(%VenueSource{})))
+     |> assign(:collecting_source, nil)
+     |> assign(:matching_source, nil)
      |> assign(:show_ignored, false)
      |> assign(:shows, [])}
   end
@@ -36,32 +38,63 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
      )}
   end
 
-  def handle_event("collect-thalia-schedule", _params, socket) do
-    case Venues.collect_schedule_payload_for_source("thalia_hall_ticketmaster") do
+  def handle_event("collect-source", %{"source_key" => source_key}, socket) do
+    socket = assign(socket, :collecting_source, source_key)
+
+    case Venues.collect_schedule_payload_for_source(source_key, force: true) do
       {:ok, updated_venue, :updated} ->
         {:noreply,
          socket
          |> assign(:venue, updated_venue)
-         |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(updated_venue))
-         |> put_flash(:info, "Collected Thalia Hall source data")}
+         |> assign(:collecting_source, nil)
+         |> refresh_source_assigns()
+         |> put_flash(:info, "Collected source data for #{source_key}")}
 
       {:ok, same_venue, :skipped} ->
         {:noreply,
          socket
          |> assign(:venue, same_venue)
-         |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(same_venue))
-         |> put_flash(:info, "Thalia Hall source data recently collected; skipped")}
-
-      {:error, :thalia_hall_not_found} ->
-        {:noreply, put_flash(socket, :error, "Thalia Hall venue not found")}
+         |> assign(:collecting_source, nil)
+         |> refresh_source_assigns()
+         |> put_flash(:info, "Source data for #{source_key} recently collected; skipped")}
 
       {:error, reason} ->
         {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Unable to collect Thalia Hall source data: #{inspect(reason)}"
+         socket
+         |> assign(:collecting_source, nil)
+         |> put_flash(:error, "Unable to collect source data for #{source_key}: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event("match-source-shows", %{"source_key" => source_key}, socket) do
+    socket = assign(socket, :matching_source, source_key)
+
+    case Venues.parse_schedule_payload_and_create_shows_for_source(source_key) do
+      {:ok, result} ->
+        {:noreply,
+         socket
+         |> assign(:matching_source, nil)
+         |> assign(
+           :shows,
+           Venues.list_shows_for_venue(
+             socket.assigns.venue.id,
+             include_ignored: socket.assigns.show_ignored
+           )
+         )
+         |> put_flash(
+           :info,
+           "Matched shows for #{source_key}: " <>
+             "#{result.parsed_events_count} parsed, " <>
+             "#{result.matched_events_count} matched, " <>
+             "#{result.created_shows_count} created, " <>
+             "#{result.skipped_events_count} skipped"
          )}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:matching_source, nil)
+         |> put_flash(:error, "Unable to match shows for #{source_key}: #{inspect(reason)}")}
     end
   end
 
@@ -215,16 +248,6 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
           </div>
 
           <div class="flex items-center gap-2">
-            <button
-              :if={thalia_hall?(@venue)}
-              id="collect-thalia-schedule"
-              type="button"
-              phx-click="collect-thalia-schedule"
-              class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
-            >
-              Collect Source Data
-            </button>
-
             <.link
               navigate={~p"/admin/venues/#{@venue.id}/edit"}
               class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
@@ -364,6 +387,48 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
 
                     <div class="flex items-center gap-2">
                       <button
+                        :if={Venues.known_source_key?(source.source_key)}
+                        id={"collect-source-#{source.id}"}
+                        type="button"
+                        phx-click="collect-source"
+                        phx-value-source_key={source.source_key}
+                        disabled={@collecting_source == source.source_key}
+                        class={[
+                          "inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium transition",
+                          if(@collecting_source == source.source_key,
+                            do: "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed",
+                            else: "border-blue-300 bg-white text-blue-700 hover:bg-blue-50"
+                          )
+                        ]}
+                      >
+                        {if(@collecting_source == source.source_key,
+                          do: "Collecting…",
+                          else: "Collect"
+                        )}
+                      </button>
+
+                      <button
+                        :if={Venues.known_source_key?(source.source_key) && source.raw_payload}
+                        id={"match-source-#{source.id}"}
+                        type="button"
+                        phx-click="match-source-shows"
+                        phx-value-source_key={source.source_key}
+                        disabled={@matching_source == source.source_key}
+                        class={[
+                          "inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium transition",
+                          if(@matching_source == source.source_key,
+                            do: "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed",
+                            else: "border-green-300 bg-white text-green-700 hover:bg-green-50"
+                          )
+                        ]}
+                      >
+                        {if(@matching_source == source.source_key,
+                          do: "Matching…",
+                          else: "Match Shows"
+                        )}
+                      </button>
+
+                      <button
                         id={"edit-source-#{source.id}"}
                         type="button"
                         phx-click="edit-source"
@@ -454,8 +519,6 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
     </Layouts.app>
     """
   end
-
-  defp thalia_hall?(venue), do: venue.name == "Thalia Hall"
 
   defp show_ignored?(%{"show_ignored" => value}) when value in ["true", "1"], do: true
   defp show_ignored?(_params), do: false
