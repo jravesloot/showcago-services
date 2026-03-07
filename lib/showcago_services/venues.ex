@@ -11,12 +11,13 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Schema.Venue
   alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Venues.Sources.AragonBallroomTicketmaster
+  alias ShowcagoServices.Venues.Sources.BeatKitchenSeeTickets
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
   require Logger
 
-  @source_modules [AragonBallroomTicketmaster, SaltShedTicketmaster, ThaliaHallTicketmaster]
+  @source_modules [AragonBallroomTicketmaster, BeatKitchenSeeTickets, SaltShedTicketmaster, ThaliaHallTicketmaster]
 
   @doc """
   Returns the list of configured source modules.
@@ -329,6 +330,7 @@ defmodule ShowcagoServices.Venues do
   defp not_found_error_for_source(source_key) do
     cond do
       source_key == AragonBallroomTicketmaster.source_key() -> :aragon_ballroom_not_found
+      source_key == BeatKitchenSeeTickets.source_key() -> :beat_kitchen_not_found
       source_key == SaltShedTicketmaster.source_key() -> :salt_shed_not_found
       source_key == ThaliaHallTicketmaster.source_key() -> :thalia_hall_not_found
       true -> :venue_not_found_for_source
