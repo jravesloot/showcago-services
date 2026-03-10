@@ -14,6 +14,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.BeatKitchenSeeTickets
   alias ShowcagoServices.Venues.Sources.BottomLoungeTicketmaster
   alias ShowcagoServices.Venues.Sources.ChopShopDice
+  alias ShowcagoServices.Venues.Sources.ConcordMusicHallTicketmaster
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
@@ -24,6 +25,7 @@ defmodule ShowcagoServices.Venues do
     BeatKitchenSeeTickets,
     BottomLoungeTicketmaster,
     ChopShopDice,
+    ConcordMusicHallTicketmaster,
     SaltShedTicketmaster,
     ThaliaHallTicketmaster
   ]
