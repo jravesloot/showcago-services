@@ -12,12 +12,21 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Schema.VenueSource
   alias ShowcagoServices.Venues.Sources.AragonBallroomTicketmaster
   alias ShowcagoServices.Venues.Sources.BeatKitchenSeeTickets
+  alias ShowcagoServices.Venues.Sources.BottomLoungeTicketmaster
+  alias ShowcagoServices.Venues.Sources.ChopShopDice
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
   require Logger
 
-  @source_modules [AragonBallroomTicketmaster, BeatKitchenSeeTickets, SaltShedTicketmaster, ThaliaHallTicketmaster]
+  @source_modules [
+    AragonBallroomTicketmaster,
+    BeatKitchenSeeTickets,
+    BottomLoungeTicketmaster,
+    ChopShopDice,
+    SaltShedTicketmaster,
+    ThaliaHallTicketmaster
+  ]
 
   @doc """
   Returns the list of configured source modules.
