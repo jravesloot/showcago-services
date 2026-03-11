@@ -127,6 +127,9 @@ defmodule ShowcagoServices.Venues do
 
   defp maybe_offset(query, _invalid_offset), do: query
 
+  @spec get_venue(term()) :: Venue.t() | nil
+  def get_venue(id), do: Repo.get(Venue, id)
+
   @spec get_venue!(term()) :: Venue.t()
   def get_venue!(id), do: Repo.get!(Venue, id)
 

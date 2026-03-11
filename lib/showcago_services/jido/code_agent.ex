@@ -13,7 +13,9 @@ defmodule ShowcagoServices.Jido.CodeAgent do
       ShowcagoServices.Jido.Actions.GitHub.CreateBranchAction,
       ShowcagoServices.Jido.Actions.GitHub.CommitFileAction,
       ShowcagoServices.Jido.Actions.GitHub.OpenPullRequestAction,
-      ShowcagoServices.Jido.Actions.GitHub.CreateIssueAction
+      ShowcagoServices.Jido.Actions.GitHub.CreateIssueAction,
+      ShowcagoServices.Jido.Actions.GetVenueAction,
+      ShowcagoServices.Jido.Actions.CreateVenueSourceAction
     ],
     system_prompt: """
     You are a developer assistant that makes code changes to the showcago-services
@@ -25,6 +27,8 @@ defmodule ShowcagoServices.Jido.CodeAgent do
     - commit file changes (create or update) to a branch
     - open a pull request
     - create an issue (optionally with labels)
+    - look up a venue by name to get its ID and details
+    - create a venue source record (linking a source_key to a venue by ID)
 
     ## Repo structure
 
