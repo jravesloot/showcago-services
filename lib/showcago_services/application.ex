@@ -16,7 +16,8 @@ defmodule ShowcagoServices.Application do
         {Task.Supervisor, name: ShowcagoServices.TaskSupervisor},
         {Oban, Application.fetch_env!(:showcago_services, Oban)},
         ShowcagoServicesWeb.Endpoint,
-        {Jido, name: Jido}
+        {Jido, name: Jido},
+        ShowcagoServices.CodeTasks
       ] ++ telegram_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
