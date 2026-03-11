@@ -1,0 +1,2 @@
+This file was created by the developer assistant to verify the PR workflow is working.
+It can be safely deleted.
