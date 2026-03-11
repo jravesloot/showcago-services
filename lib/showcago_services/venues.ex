@@ -19,6 +19,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.HouseOfBluesTicketmaster
   alias ShowcagoServices.Venues.Sources.LincolnHallLhSt
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
+  alias ShowcagoServices.Venues.Sources.SchubasTavernLhSt
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
   require Logger
@@ -33,6 +34,7 @@ defmodule ShowcagoServices.Venues do
     HouseOfBluesTicketmaster,
     LincolnHallLhSt,
     SaltShedTicketmaster,
+    SchubasTavernLhSt,
     ThaliaHallTicketmaster
   ]
 
