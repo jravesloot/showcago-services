@@ -18,6 +18,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.EmptyBottleTicketmaster
   alias ShowcagoServices.Venues.Sources.HouseOfBluesTicketmaster
   alias ShowcagoServices.Venues.Sources.LincolnHallLhSt
+  alias ShowcagoServices.Venues.Sources.MartyrsLive
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.SchubasTavernLhSt
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
@@ -33,6 +34,7 @@ defmodule ShowcagoServices.Venues do
     EmptyBottleTicketmaster,
     HouseOfBluesTicketmaster,
     LincolnHallLhSt,
+    MartyrsLive,
     SaltShedTicketmaster,
     SchubasTavernLhSt,
     ThaliaHallTicketmaster
