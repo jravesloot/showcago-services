@@ -19,6 +19,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.HouseOfBluesTicketmaster
   alias ShowcagoServices.Venues.Sources.LincolnHallLhSt
   alias ShowcagoServices.Venues.Sources.MartyrsLive
+  alias ShowcagoServices.Venues.Sources.MetroWebsite
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.SchubasTavernLhSt
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
@@ -35,6 +36,7 @@ defmodule ShowcagoServices.Venues do
     HouseOfBluesTicketmaster,
     LincolnHallLhSt,
     MartyrsLive,
+    MetroWebsite,
     SaltShedTicketmaster,
     SchubasTavernLhSt,
     ThaliaHallTicketmaster
@@ -352,6 +354,7 @@ defmodule ShowcagoServices.Venues do
     cond do
       source_key == AragonBallroomTicketmaster.source_key() -> :aragon_ballroom_not_found
       source_key == BeatKitchenSeeTickets.source_key() -> :beat_kitchen_not_found
+      source_key == MetroWebsite.source_key() -> :metro_not_found
       source_key == SaltShedTicketmaster.source_key() -> :salt_shed_not_found
       source_key == ThaliaHallTicketmaster.source_key() -> :thalia_hall_not_found
       true -> :venue_not_found_for_source

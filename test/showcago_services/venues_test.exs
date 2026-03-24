@@ -602,6 +602,94 @@ defmodule ShowcagoServices.VenuesTest do
                )
     end
 
+    test "collect_schedule_payload_for_source/2 returns not found for metro when missing" do
+      assert {:error, :metro_not_found} =
+               Venues.collect_schedule_payload_for_source("metro_website", force: true)
+    end
+
+    test "collect_schedule_payload_for_source/2 stores raw api payload for metro" do
+      venue = create_venue!(%{name: "Metro"})
+      insert_source_config!(venue, "metro_website")
+
+      fetch_events_fun = fn ->
+        {:ok,
+         [
+           %{
+             "name" => "Yebba",
+             "url" => "https://metrochicago.com/event/yebba-2/metro-chicago/chicago-illinois/",
+             "start_date" => "2026-05-18"
+           }
+         ]}
+      end
+
+      assert {:ok, updated, :updated} =
+               Venues.collect_schedule_payload_for_source("metro_website",
+                 force: true,
+                 fetch_events_fun: fetch_events_fun
+               )
+
+      assert updated.id == venue.id
+
+      source_row =
+        Repo.get_by!(VenueSource,
+          venue_id: venue.id,
+          source_key: "metro_website"
+        )
+
+      assert {:ok, payload} = Jason.decode(source_row.raw_payload)
+      assert payload["source"] == "metro_website_html"
+      assert is_binary(payload["fetched_at"])
+      assert is_list(payload["events"])
+      assert Enum.any?(payload["events"], &(&1["name"] == "Yebba"))
+
+      assert source_row.payload_format == "json"
+      assert %DateTime{} = source_row.fetched_at
+    end
+
+    test "parses shows from stored metro ticketmaster payload" do
+      {:ok, artist} =
+        %Artist{}
+        |> Artist.changeset(%{name: "Yebba"})
+        |> Repo.insert()
+
+      _venue = create_venue!(%{name: "Metro"})
+
+      venue = Repo.get_by!(Venue, name: "Metro")
+      insert_source_config!(venue, "metro_website")
+
+      fetch_events_fun = fn ->
+        {:ok,
+         [
+           %{
+             "name" => "Yebba",
+             "url" => "https://metrochicago.com/event/yebba-2/metro-chicago/chicago-illinois/",
+             "start_date" => "2026-05-18"
+           }
+         ]}
+      end
+
+      assert {:ok, _updated, :updated} =
+               Venues.collect_schedule_payload_for_source("metro_website",
+                 force: true,
+                 fetch_events_fun: fetch_events_fun
+               )
+
+      assert {:ok, result} =
+               Venues.parse_schedule_payload_and_create_shows_for_source("metro_website")
+
+      assert result.parsed_events_count == 1
+      assert result.matched_events_count == 1
+      assert result.created_shows_count == 1
+
+      show = Repo.one!(from(s in Show))
+      assert show.ticket_url == "https://metrochicago.com/event/yebba-2/metro-chicago/chicago-illinois/"
+
+      show_artist_ids =
+        Repo.all(from(sa in "show_artists", where: sa.show_id == ^show.id, select: sa.artist_id))
+
+      assert artist.id in show_artist_ids
+    end
+
     test "collect_schedule_payload_for_source/2 stores scraped payload for beat kitchen" do
       venue = create_venue!(%{name: "Beat Kitchen"})
       insert_source_config!(venue, "beat_kitchen_seetickets")
