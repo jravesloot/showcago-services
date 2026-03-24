@@ -20,6 +20,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.LincolnHallLhSt
   alias ShowcagoServices.Venues.Sources.MartyrsLive
   alias ShowcagoServices.Venues.Sources.MetroWebsite
+  alias ShowcagoServices.Venues.Sources.ParkWestWebsite
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.SchubasTavernLhSt
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
@@ -37,6 +38,7 @@ defmodule ShowcagoServices.Venues do
     LincolnHallLhSt,
     MartyrsLive,
     MetroWebsite,
+    ParkWestWebsite,
     SaltShedTicketmaster,
     SchubasTavernLhSt,
     ThaliaHallTicketmaster
