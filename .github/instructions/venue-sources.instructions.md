@@ -21,11 +21,13 @@ All venue sources implement this behaviour with 5 callbacks:
 
 ## Source modules
 
-Located in `lib/showcago_services/venues/sources/`. Two patterns:
+Located in `lib/showcago_services/venues/sources/`. A single venue can have **multiple sources** (e.g. a Ticketmaster API feed and the venue's own website). Each source module is independent and produces its own `VenueSource` record keyed by `(venue_id, source_key)`.
 
-**Ticketmaster API sources** — fetch from Ticketmaster Discovery API using venue-specific URLs. Events come as structured JSON with `dates.start.dateTime` or `dates.start.localDate`.
+Sources can be **any data provider** — an API, a website scraper, an RSS feed, a third-party ticketing platform, etc. Current examples include:
 
-**HTML scraper sources** — fetch venue website HTML via Req, parse with regex. Expose a `parse_events_from_html/1` function for testability.
+- **Ticketmaster API** — fetch from Ticketmaster Discovery API using venue-specific URLs
+- **HTML scrapers** — fetch venue website HTML via Req, parse with regex. Expose a `parse_events_from_html/1` function for testability
+- **SeeTickets, Dice, lh-st.com** — other ticketing platform APIs/pages
 
 ## Payload format
 
