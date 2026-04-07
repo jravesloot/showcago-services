@@ -23,6 +23,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.ParkWestWebsite
   alias ShowcagoServices.Venues.Sources.RadiusWebsite
   alias ShowcagoServices.Venues.Sources.ReggiesWebsite
+  alias ShowcagoServices.Venues.Sources.RivieraTheatreWebsite
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.SchubasTavernLhSt
   alias ShowcagoServices.Venues.Sources.SleepingVillageDice
@@ -45,6 +46,7 @@ defmodule ShowcagoServices.Venues do
     ParkWestWebsite,
     RadiusWebsite,
     ReggiesWebsite,
+    RivieraTheatreWebsite,
     SaltShedTicketmaster,
     SchubasTavernLhSt,
     SleepingVillageDice,
