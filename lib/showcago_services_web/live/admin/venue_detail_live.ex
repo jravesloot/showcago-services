@@ -17,6 +17,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
      |> assign(:venue, venue)
      |> assign(:last_collected_at, Venues.latest_source_fetched_at_for_venue(venue))
      |> assign(:venue_sources, Venues.list_venue_sources(venue))
+     |> assign(:known_source_keys, Enum.map(Venues.source_modules(), & &1.source_key()))
      |> assign(:editing_source_id, nil)
      |> assign(:show_source_form, false)
      |> assign(:source_form, to_form(Venues.change_venue_source(%VenueSource{})))
@@ -387,7 +388,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
 
                     <div class="flex items-center gap-2">
                       <button
-                        :if={Venues.known_source_key?(source.source_key)}
+                        :if={source.source_key in @known_source_keys}
                         id={"collect-source-#{source.id}"}
                         type="button"
                         phx-click="collect-source"
@@ -408,7 +409,7 @@ defmodule ShowcagoServicesWeb.Admin.VenueDetailLive do
                       </button>
 
                       <button
-                        :if={Venues.known_source_key?(source.source_key) && source.raw_payload}
+                        :if={source.source_key in @known_source_keys && source.raw_payload}
                         id={"match-source-#{source.id}"}
                         type="button"
                         phx-click="match-source-shows"

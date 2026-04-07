@@ -57,14 +57,6 @@ defmodule ShowcagoServices.Venues do
   """
   def source_modules, do: @source_modules
 
-  @doc """
-  Returns true if the given source key has a registered source module.
-  """
-  @spec known_source_key?(binary()) :: boolean()
-  def known_source_key?(source_key) when is_binary(source_key) do
-    Enum.any?(@source_modules, &(&1.source_key() == source_key))
-  end
-
   @default_event_artist_match_limit 5
 
   @spec list_venues(keyword()) :: [Venue.t()]
