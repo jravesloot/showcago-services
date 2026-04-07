@@ -26,6 +26,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.SchubasTavernLhSt
   alias ShowcagoServices.Venues.Sources.SleepingVillageDice
+  alias ShowcagoServices.Venues.Sources.SubterraneanSeeTickets
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
   require Logger
@@ -47,6 +48,7 @@ defmodule ShowcagoServices.Venues do
     SaltShedTicketmaster,
     SchubasTavernLhSt,
     SleepingVillageDice,
+    SubterraneanSeeTickets,
     ThaliaHallTicketmaster
   ]
 
