@@ -25,6 +25,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.ReggiesWebsite
   alias ShowcagoServices.Venues.Sources.SaltShedTicketmaster
   alias ShowcagoServices.Venues.Sources.SchubasTavernLhSt
+  alias ShowcagoServices.Venues.Sources.SleepingVillageDice
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
 
   require Logger
@@ -45,6 +46,7 @@ defmodule ShowcagoServices.Venues do
     ReggiesWebsite,
     SaltShedTicketmaster,
     SchubasTavernLhSt,
+    SleepingVillageDice,
     ThaliaHallTicketmaster
   ]
 
