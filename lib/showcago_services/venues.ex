@@ -29,6 +29,7 @@ defmodule ShowcagoServices.Venues do
   alias ShowcagoServices.Venues.Sources.SleepingVillageDice
   alias ShowcagoServices.Venues.Sources.SubterraneanSeeTickets
   alias ShowcagoServices.Venues.Sources.ThaliaHallTicketmaster
+  alias ShowcagoServices.Venues.Sources.VicTheatreWebsite
 
   require Logger
 
@@ -51,7 +52,8 @@ defmodule ShowcagoServices.Venues do
     SchubasTavernLhSt,
     SleepingVillageDice,
     SubterraneanSeeTickets,
-    ThaliaHallTicketmaster
+    ThaliaHallTicketmaster,
+    VicTheatreWebsite
   ]
 
   @doc """
