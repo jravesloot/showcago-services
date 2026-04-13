@@ -1,5 +1,5 @@
 defmodule ShowcagoServicesWeb.UserLive.Registration do
-  @moduledoc false
+  @moduledoc "Deprecated; no longer used in the app. Kept for reference and potential future use."
   use ShowcagoServicesWeb, :live_view
 
   alias ShowcagoServices.Users
